@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { getPlayer, createPlayer, savePlayer } from './db.js';
+import { applyToolUpgrade } from './gameLogic.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -94,32 +95,19 @@ io.on('connection', (socket) => {
           if (idx !== -1) state.workerActions.splice(idx, 1);
         }
 
-        // --- ADD THIS BLOCK ---
         if (type === 'upgradeTool') {
           const { skill, part } = payload;
 
-          // Retrofit old players with the new foraging and bindings data
           if (!state.tools) state.tools = {};
-          if (!state.tools.woodcutting) state.tools.woodcutting = { handle: 1, metal: 1, bindings: 1 };
-          if (!state.tools.mining) state.tools.mining = { handle: 1, metal: 1, bindings: 1 };
-          if (!state.tools.foraging) state.tools.foraging = { handle: 1, metal: 1, bindings: 1 };
+          if (!state.tools.woodcutting) state.tools.woodcutting = { handle: 1, metal: 1, bindings: 1, critChance: 1, critDamage: 1, grip: 1, enchantment: 1 };
+          if (!state.tools.mining) state.tools.mining = { handle: 1, metal: 1, bindings: 1, critChance: 1, critDamage: 1, grip: 1, enchantment: 1 };
+          if (!state.tools.foraging) state.tools.foraging = { handle: 1, metal: 1, bindings: 1, critChance: 1, critDamage: 1, grip: 1, enchantment: 1 };
 
-          // Ensure bindings exist on older tool saves
           if (!state.tools.woodcutting.bindings) state.tools.woodcutting.bindings = 1;
           if (!state.tools.mining.bindings) state.tools.mining.bindings = 1;
+          if (!state.tools.foraging.bindings) state.tools.foraging.bindings = 1;
 
-          const currentLevel = state.tools[skill][part];
-          const costAmount = currentLevel * 10;
-
-          let costItem = '';
-          if (part === 'handle') costItem = 'Oak Log';
-          if (part === 'metal') costItem = 'Copper Ore';
-          if (part === 'bindings') costItem = 'Cotton Fiber'; // <-- New cost
-
-          if ((state.inventory[costItem] || 0) >= costAmount) {
-            state.inventory[costItem] -= costAmount;
-            state.tools[skill][part] += 1;
-          }
+          applyToolUpgrade(state, skill, part);
         }
 
         // 🔴 FORCE SYNC: Tell the frontend the action state changed immediately
@@ -174,26 +162,28 @@ setInterval(() => {
       }
     }
 
-    // 2. Process Worker Action
-    if (state.workerAction) {
-      let skill = 'woodcutting';
-      if (state.workerAction.yields.includes('Ore')) skill = 'mining';
-      if (state.workerAction.yields.includes('Fiber')) skill = 'foraging';
+    // 2. Process Worker Actions
+    if (state.workerActions?.length) {
+      for (const workerAction of state.workerActions) {
+        let skill = 'woodcutting';
+        if (workerAction.yields.includes('Ore')) skill = 'mining';
+        if (workerAction.yields.includes('Fiber')) skill = 'foraging';
 
-      const handleLevel = state.tools?.[skill]?.handle || 1;
-      const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
+        const handleLevel = state.tools?.[skill]?.handle || 1;
+        const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
 
-      state.workerAction.progress += (100 * speedMultiplier);
-      stateChanged = true;
+        workerAction.progress += (100 * speedMultiplier);
+        stateChanged = true;
 
-      if (state.workerAction.progress >= state.workerAction.time) {
-        const metalLevel = state.tools?.[skill]?.metal || 1;
-        const bindingsLevel = state.tools?.[skill]?.bindings || 1;
-        const xpMultiplier = 1 + ((bindingsLevel - 1) * 0.20);
+        if (workerAction.progress >= workerAction.time) {
+          const metalLevel = state.tools?.[skill]?.metal || 1;
+          const bindingsLevel = state.tools?.[skill]?.bindings || 1;
+          const xpMultiplier = 1 + ((bindingsLevel - 1) * 0.20);
 
-        xpGained += Math.floor(state.workerAction.xpReward * xpMultiplier);
-        resGained[state.workerAction.yields] = (resGained[state.workerAction.yields] || 0) + (1 * metalLevel);
-        state.workerAction.progress = 0;
+          xpGained += Math.floor(workerAction.xpReward * xpMultiplier);
+          resGained[workerAction.yields] = (resGained[workerAction.yields] || 0) + (1 * metalLevel);
+          workerAction.progress = 0;
+        }
       }
     }
 
