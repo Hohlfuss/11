@@ -83,7 +83,8 @@ io.on('connection', (socket) => {
         
         if (type === 'recallWorker') {
           state.workerAction = null;
-        }
+        }// 🔴 FORCE SYNC: Tell the frontend the action state changed immediately
+        socket.emit('gameStateUpdate', state);
         
         break;
       }
