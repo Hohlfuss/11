@@ -10,7 +10,8 @@ import {
   Box, 
   ChevronRight,
   Gem,
-  LogIn
+  LogIn,
+  Wrench
 } from 'lucide-vue-next';
 
 // This will use your Render backend in production, or fallback to relative/local in dev
@@ -41,14 +42,18 @@ const NODES = {
 // --- CENTRAL GAME STATE ---
 // Notice how it starts empty/default. The server will immediately overwrite this!
 const state = reactive({
-  view: 'main' as 'main' | 'woodcutting' | 'mining',
+  view: 'main' as 'main' | 'woodcutting' | 'mining' | "crafting",
   level: 1,
   xp: 0,
   xpNeeded: 100,
   workersTotal: 0,
   inventory: {} as Record<string, number>,
   manualAction: null as any,
-  workerAction: null as any
+  workerAction: null as any,
+  tools: {
+    woodcutting: { handle: 1, metal: 1 },
+    mining: { handle: 1, metal: 1 }
+  }
 });
 
 // --- LISTEN TO THE SERVER ---
@@ -81,6 +86,10 @@ const updateLocalState = (serverState: any) => {
   // fallback that check is permanently true and the button never enables.
   state.manualAction = serverState.manualAction ?? null;
   state.workerAction = serverState.workerAction ?? null;
+
+  if (serverState.tools) {
+    state.tools = serverState.tool;
+  }
 };
 
 onUnmounted(() => {
@@ -97,7 +106,7 @@ const handleLogin = () => {
   socket.emit('playerLogin', auth.usernameInput.trim());
 };
 
-const changeView = (newView: 'main' | 'woodcutting' | 'mining') => {
+const changeView = (newView: 'main' | 'woodcutting' | 'mining' | "crafting") => {
   state.view = newView;
 };
 
@@ -114,6 +123,15 @@ const assignWorker = (node: any) => {
 const recallWorker = () => {
   socket.emit('playerAction', { type: 'recallWorker' });
 };
+
+// --- CRAFTING ACTIONS ---
+const upgradeTool = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal') => {
+  socket.emit('playerAction', { type: 'upgradeTool', skill, part });
+};
+
+// Helpers for the UI to display costs
+const getUpgradeCost = (level: number) => level * 10;
+const getUpgradeResource = (part: 'handle' | 'metal') => part === 'handle' ? 'Oak Log' : 'Copper Ore';
 </script>
 
 <template>
@@ -199,6 +217,18 @@ const recallWorker = () => {
             <div class="ml-6 flex-1">
               <h3 class="text-xl font-bold text-white">Mining</h3>
               <p class="text-slate-400 text-sm">Extract ores from the earth for smelting.</p>
+            </div>
+            <ChevronRight class="text-slate-500 group-hover:text-white transition-colors" />
+          </button>
+
+          <!-- NEW CRAFTING BUTTON -->
+          <button @click="changeView('crafting')" class="group relative flex items-center p-6 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-all text-left mt-4">
+            <div class="bg-blue-900/30 p-4 rounded-lg text-blue-500 group-hover:scale-110 transition-transform">
+              <Wrench :size="32" />
+            </div>
+            <div class="ml-6 flex-1">
+              <h3 class="text-xl font-bold text-white">Crafting & Upgrades</h3>
+              <p class="text-slate-400 text-sm">Use resources to improve your tools and yield.</p>
             </div>
             <ChevronRight class="text-slate-500 group-hover:text-white transition-colors" />
           </button>
@@ -288,6 +318,108 @@ const recallWorker = () => {
         </div>
       </div>
 
+      <!-- NEW CRAFTING MENU VIEW -->
+        <div v-if="state.view === 'crafting'" class="flex flex-col h-full">
+          <button @click="changeView('main')" class="self-start flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
+            <ArrowLeft :size="18" /> Back to Operations
+          </button>
+          
+          <div class="grid gap-6">
+            <!-- WOODCUTTING AXE UPGRADES -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
+              <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
+                <Axe class="text-green-500" :size="20"/> Hatchet Upgrades
+              </h3>
+              
+              <div class="flex flex-col gap-4">
+                <!-- Handle Upgrade -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Reinforced Handle (Lvl {{ state.tools.woodcutting.handle }})</h4>
+                    <p class="text-xs text-slate-400">Increases chopping speed by 25%</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('handle')] || 0) >= getUpgradeCost(state.tools.woodcutting.handle) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools.woodcutting.handle) }} {{ getUpgradeResource('handle') }}
+                    </p>
+                  </div>
+                  <button 
+                    @click="upgradeTool('woodcutting', 'handle')"
+                    :disabled="(state.inventory[getUpgradeResource('handle')] || 0) < getUpgradeCost(state.tools.woodcutting.handle)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <!-- Metal Upgrade -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Sharpened Metal (Lvl {{ state.tools.woodcutting.metal }})</h4>
+                    <p class="text-xs text-slate-400">Increases log yield by +1</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('metal')] || 0) >= getUpgradeCost(state.tools.woodcutting.metal) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools.woodcutting.metal) }} {{ getUpgradeResource('metal') }}
+                    </p>
+                  </div>
+                  <button 
+                    @click="upgradeTool('woodcutting', 'metal')"
+                    :disabled="(state.inventory[getUpgradeResource('metal')] || 0) < getUpgradeCost(state.tools.woodcutting.metal)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- MINING PICKAXE UPGRADES -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
+              <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
+                <Pickaxe class="text-orange-500" :size="20"/> Pickaxe Upgrades
+              </h3>
+              
+              <div class="flex flex-col gap-4">
+                <!-- Handle Upgrade -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Sturdy Handle (Lvl {{ state.tools.mining.handle }})</h4>
+                    <p class="text-xs text-slate-400">Increases mining speed by 25%</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('handle')] || 0) >= getUpgradeCost(state.tools.mining.handle) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools.mining.handle) }} {{ getUpgradeResource('handle') }}
+                    </p>
+                  </div>
+                  <button 
+                    @click="upgradeTool('mining', 'handle')"
+                    :disabled="(state.inventory[getUpgradeResource('handle')] || 0) < getUpgradeCost(state.tools.mining.handle)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <!-- Metal Upgrade -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Hardened Head (Lvl {{ state.tools.mining.metal }})</h4>
+                    <p class="text-xs text-slate-400">Increases ore yield by +1</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('metal')] || 0) >= getUpgradeCost(state.tools.mining.metal) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools.mining.metal) }} {{ getUpgradeResource('metal') }}
+                    </p>
+                  </div>
+                  <button 
+                    @click="upgradeTool('mining', 'metal')"
+                    :disabled="(state.inventory[getUpgradeResource('metal')] || 0) < getUpgradeCost(state.tools.mining.metal)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+
+      <!-- SIDEBAR INVENTORY -->
       <div class="w-full md:w-80 flex flex-col gap-6">
         
         <div v-if="state.workersTotal > 0" class="bg-amber-900/20 border border-amber-500/30 p-4 rounded-xl shadow-lg">
@@ -327,5 +459,4 @@ const recallWorker = () => {
         
       </div>
     </div>
-  </div>
 </template>
