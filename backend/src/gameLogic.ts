@@ -29,8 +29,8 @@ export function getUpgradeResource(skill: 'woodcutting' | 'mining' | 'foraging',
   if (skill === 'foraging') {
     if (part === 'grip') return 'Flax Fiber';
     if (part === 'enchantment') return 'Magic Vine';
-    if (part === 'critChance') return 'Silk Thread';
-    if (part === 'critDamage') return 'Magic Vine';
+    if (part === 'critChance') return 'Silk Fiber';
+    if (part === 'critDamage') return 'Magic Fiber';
     if (part === 'bindings') return 'Cotton Fiber';
     return part === 'handle' ? 'Cotton Fiber' : 'Hemp Fiber'; // hemp for metal/blade
   }

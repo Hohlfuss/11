@@ -83,8 +83,8 @@ const NODES = {
     { id: 'cotton', name: 'Cotton Plant', time: 4000, xpReward: 12, yields: 'Cotton Fiber', unlockLevel: 1, icon: Leaf, color: 'text-teal-400', bg: 'bg-teal-400' },
     { id: 'hemp', name: 'Hemp Plant', time: 7000, xpReward: 25, yields: 'Hemp Fiber', unlockLevel: 4, icon: Leaf, color: 'text-lime-500', bg: 'bg-lime-500' },
     { id: 'flax', name: 'Flax Flower', time: 12000, xpReward: 50, yields: 'Flax Fiber', unlockLevel: 8, icon: Leaf, color: 'text-blue-400', bg: 'bg-blue-400' },
-    { id: 'silk', name: 'Silk Moth Nest', time: 18000, xpReward: 90, yields: 'Silk Thread', unlockLevel: 15, icon: Leaf, color: 'text-indigo-400', bg: 'bg-indigo-400' },
-    { id: 'magic_vine', name: 'Magic Vine', time: 30000, xpReward: 200, yields: 'Magic Vine', unlockLevel: 25, icon: Leaf, color: 'text-purple-500', bg: 'bg-purple-500' },
+    { id: 'silk', name: 'Silk Moth Nest', time: 18000, xpReward: 90, yields: 'Silk Fiber', unlockLevel: 15, icon: Leaf, color: 'text-indigo-400', bg: 'bg-indigo-400' },
+    { id: 'magic_vine', name: 'Magic Vine', time: 30000, xpReward: 200, yields: 'Magic Fiber', unlockLevel: 25, icon: Leaf, color: 'text-purple-500', bg: 'bg-purple-500' },
   ]
 };
 
@@ -103,8 +103,8 @@ const ALL_MATERIALS = [
   { name: 'Cotton Fiber', unlockLevel: 1 },
   { name: 'Hemp Fiber', unlockLevel: 4 },
   { name: 'Flax Fiber', unlockLevel: 8 },
-  { name: 'Silk Thread', unlockLevel: 15 },
-  { name: 'Magic Vine', unlockLevel: 25 }
+  { name: 'Silk Fiber', unlockLevel: 15 },
+  { name: 'Magic Fiber', unlockLevel: 25 }
 ];
 
 // --- CENTRAL GAME STATE ---

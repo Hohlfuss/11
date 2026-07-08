@@ -66,7 +66,7 @@ export async function createPlayer(username: string, passwordHash: string) {
     inventory: {
       'Oak Log': 0, 'Pine Log': 0, 'Maple Log': 0, 'Mahogany Log': 0, 'Yew Log': 0,
       'Copper Ore': 0, 'Iron Ore': 0, 'Silver Ore': 0, 'Gold Ore': 0, 'Mithril Ore': 0,
-      "Cotton Fiber": 0, "Hemp Fiber": 0, 'Flax Fiber': 0, 'Silk Thread': 0, 'Magic Vine': 0
+      "Cotton Fiber": 0, "Hemp Fiber": 0, 'Flax Fiber': 0, 'Silk Fiber': 0, 'Magic Fiber': 0
     }
   };
 
