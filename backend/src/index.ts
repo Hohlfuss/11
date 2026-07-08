@@ -83,7 +83,32 @@ io.on('connection', (socket) => {
         
         if (type === 'recallWorker') {
           state.workerAction = null;
-        }// 🔴 FORCE SYNC: Tell the frontend the action state changed immediately
+        }
+        
+        // --- ADD THIS BLOCK ---
+        if (type === 'upgradeTool') {
+          const { skill, part } = payload;
+          
+          // Ensure the tools object exists for players created before this update
+          if (!state.tools) {
+            state.tools = {
+              woodcutting: { handle: 1, metal: 1 },
+              mining: { handle: 1, metal: 1 }
+            };
+          }
+
+          const currentLevel = state.tools[skill][part];
+          const costAmount = currentLevel * 10; 
+          const costItem = part === 'handle' ? 'Oak Log' : 'Copper Ore';
+
+          if ((state.inventory[costItem] || 0) >= costAmount) {
+            state.inventory[costItem] -= costAmount;
+            state.tools[skill][part] += 1;
+          }
+        }
+        // ----------------------
+        
+        // 🔴 FORCE SYNC: Tell the frontend the action state changed immediately
         socket.emit('gameStateUpdate', state);
         
         break;
@@ -114,22 +139,37 @@ setInterval(() => {
 
     // 1. Process Manual Action
     if (state.manualAction) {
-      state.manualAction.progress += 100;
+      const skill = state.manualAction.yields.includes("Log") ? "woodcutting" : "mining";
+      const handleLevel = state.tools?.[skill]?.handle || 1;
+      const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
+
+      state.manualAction.progress += (100 * speedMultiplier);
       stateChanged = true;
+
       if (state.manualAction.progress >= state.manualAction.time) {
+        const metalLevel = state.tools?.[skill]?.metal || 1;
+
         xpGained += state.manualAction.xpReward;
-        resGained[state.manualAction.yields] = (resGained[state.manualAction.yields] || 0) + 1;
+        resGained[state.manualAction.yields] = (resGained[state.manualAction.yields] || 0) + (1 * metalLevel);
         state.manualAction = null;
       }
     }
 
     // 2. Process Worker Action
     if (state.workerAction) {
-      state.workerAction.progress += 100;
+      // Infer skill based on the yield name
+      const skill = state.workerAction.yields.includes('Log') ? 'woodcutting' : 'mining';
+      const handleLevel = state.tools?.[skill]?.handle || 1;
+      const speedMultiplier = 1 + ((handleLevel - 1) * 0.25); // +25% speed per level
+
+      state.workerAction.progress += (100 * speedMultiplier);
       stateChanged = true;
+      
       if (state.workerAction.progress >= state.workerAction.time) {
+        const metalLevel = state.tools?.[skill]?.metal || 1;
+
         xpGained += state.workerAction.xpReward;
-        resGained[state.workerAction.yields] = (resGained[state.workerAction.yields] || 0) + 1;
+        resGained[state.workerAction.yields] = (resGained[state.workerAction.yields] || 0) + (1 * metalLevel);
         state.workerAction.progress = 0;
       }
     }
