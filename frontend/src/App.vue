@@ -42,6 +42,7 @@ const NODES = {
     { id: 'silver', name: 'Silver Vein', time: 7500, xpReward: 75, yields: 'Silver Ore', icon: Pickaxe, color: 'text-slate-300', bg: 'bg-slate-300' },
     { id: 'gold', name: 'Gold Vein', time: 11000, xpReward: 110, yields: 'Gold Ore', icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
     { id: 'mithril', name: 'Mithril Vein', time: 16000, xpReward: 160, yields: 'Mithril Ore', icon: Pickaxe, color: 'text-blue-500', bg: 'bg-blue-500' }
+  ]
 };
 
 const ALL_MATERIALS = [
