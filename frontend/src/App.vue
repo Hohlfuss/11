@@ -42,8 +42,12 @@ const NODES = {
     { id: 'silver', name: 'Silver Vein', time: 7500, xpReward: 75, yields: 'Silver Ore', icon: Pickaxe, color: 'text-slate-300', bg: 'bg-slate-300' },
     { id: 'gold', name: 'Gold Vein', time: 11000, xpReward: 110, yields: 'Gold Ore', icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
     { id: 'mithril', name: 'Mithril Vein', time: 16000, xpReward: 160, yields: 'Mithril Ore', icon: Pickaxe, color: 'text-blue-500', bg: 'bg-blue-500' }
-  ]
 };
+
+const ALL_MATERIALS = [
+  'Oak Log', 'Pine Log', 'Maple Log', 'Mahogany Log', 'Yew Log',
+  'Copper Ore', 'Iron Ore', 'Silver Ore', 'Gold Ore', 'Mithril Ore'
+];
 
 // --- CENTRAL GAME STATE ---
 const state = reactive({
@@ -444,23 +448,19 @@ const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'm
           </h2>
           
           <div class="space-y-4 flex-1">
-            <template v-for="(amount, itemName) in state.inventory" :key="itemName">
-              <div v-if="amount > 0" class="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
+            <template v-for="itemName in ALL_MATERIALS" :key="itemName">
+              <div class="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
                 <div class="flex items-center gap-3">
-                  <Axe v-if="String(itemName).includes('Log')" :size="16" class="text-slate-500" />
-                  <Gem v-else-if="String(itemName).includes('Ore')" :size="16" class="text-slate-500" />
+                  <Axe v-if="itemName.includes('Log')" :size="16" class="text-slate-500" />
+                  <Gem v-else-if="itemName.includes('Ore')" :size="16" class="text-slate-500" />
                   <Box v-else :size="16" class="text-slate-500" />
                   <span class="font-medium text-slate-300">{{ itemName }}</span>
                 </div>
                 <span class="font-bold text-white font-mono bg-slate-800 px-2 py-1 rounded">
-                  {{ amount.toLocaleString() }}
+                  {{ (state.inventory[itemName] || 0).toLocaleString() }}
                 </span>
               </div>
             </template>
-            
-            <div v-if="!state.inventory || Object.values(state.inventory).every(v => v === 0)" class="h-full flex items-center justify-center text-slate-500 text-sm text-center italic px-4">
-              Storage is empty. Complete tasks to gather resources.
-            </div>
           </div>
         </div>
         

@@ -55,6 +55,9 @@ io.on('connection', (socket) => {
       }
 
       // 3. Store in active memory
+      const defaultInventory = { 'Oak Log': 0, 'Pine Log': 0, 'Maple Log': 0, 'Mahogany Log': 0, 'Yew Log': 0, 'Copper Ore': 0, 'Iron Ore': 0, 'Silver Ore': 0, 'Gold Ore': 0, 'Mithril Ore': 0 };
+      data.inventory = { ...defaultInventory, ...(data.inventory || {}) };
+      
       activePlayers.set(username, { ...data, socketId: socket.id });
 
       // 4. Send success to client
