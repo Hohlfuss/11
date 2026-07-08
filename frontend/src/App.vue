@@ -28,26 +28,36 @@ const auth = reactive({
 });
 
 // --- GAME DATA CONFIGURATION ---
+// unlockLevel defines the minimum player level required to use each node/material
 const NODES = {
   woodcutting: [
-    { id: 'oak', name: 'Oak Tree', time: 5000, xpReward: 15, yields: 'Oak Log', icon: Trees, color: 'text-green-500', bg: 'bg-green-500' },
-    { id: 'pine', name: 'Pine Tree', time: 8750, xpReward: 30, yields: 'Pine Log', icon: Trees, color: 'text-emerald-700', bg: 'bg-emerald-700' },
-    { id: 'maple', name: 'Maple Tree', time: 13750, xpReward: 50, yields: 'Maple Log', icon: Trees, color: 'text-orange-600', bg: 'bg-orange-600' },
-    { id: 'mahogany', name: 'Mahogany Tree', time: 20000, xpReward: 80, yields: 'Mahogany Log', icon: Trees, color: 'text-amber-800', bg: 'bg-amber-800' },
-    { id: 'yew', name: 'Yew Tree', time: 30000, xpReward: 120, yields: 'Yew Log', icon: Trees, color: 'text-green-900', bg: 'bg-green-900' }
+    { id: 'oak',      name: 'Oak Tree',      time: 5000,  xpReward: 15,  yields: 'Oak Log',      unlockLevel: 1, icon: Trees, color: 'text-green-500',  bg: 'bg-green-500' },
+    { id: 'pine',     name: 'Pine Tree',     time: 8750,  xpReward: 30,  yields: 'Pine Log',     unlockLevel: 2, icon: Trees, color: 'text-emerald-700', bg: 'bg-emerald-700' },
+    { id: 'maple',    name: 'Maple Tree',    time: 13750, xpReward: 50,  yields: 'Maple Log',    unlockLevel: 4, icon: Trees, color: 'text-orange-600', bg: 'bg-orange-600' },
+    { id: 'mahogany', name: 'Mahogany Tree', time: 20000, xpReward: 80,  yields: 'Mahogany Log', unlockLevel: 6, icon: Trees, color: 'text-amber-800',  bg: 'bg-amber-800' },
+    { id: 'yew',      name: 'Yew Tree',      time: 30000, xpReward: 120, yields: 'Yew Log',      unlockLevel: 8, icon: Trees, color: 'text-green-900',  bg: 'bg-green-900' }
   ],
   mining: [
-    { id: 'copper', name: 'Copper Vein', time: 7500, xpReward: 20, yields: 'Copper Ore', icon: Pickaxe, color: 'text-orange-500', bg: 'bg-orange-500' },
-    { id: 'iron', name: 'Iron Vein', time: 12500, xpReward: 45, yields: 'Iron Ore', icon: Pickaxe, color: 'text-gray-400', bg: 'bg-gray-400' },
-    { id: 'silver', name: 'Silver Vein', time: 18750, xpReward: 75, yields: 'Silver Ore', icon: Pickaxe, color: 'text-slate-300', bg: 'bg-slate-300' },
-    { id: 'gold', name: 'Gold Vein', time: 27500, xpReward: 110, yields: 'Gold Ore', icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
-    { id: 'mithril', name: 'Mithril Vein', time: 40000, xpReward: 160, yields: 'Mithril Ore', icon: Pickaxe, color: 'text-blue-500', bg: 'bg-blue-500' }
+    { id: 'copper',  name: 'Copper Vein',  time: 7500,  xpReward: 20,  yields: 'Copper Ore',  unlockLevel: 1,  icon: Pickaxe, color: 'text-orange-500', bg: 'bg-orange-500' },
+    { id: 'iron',    name: 'Iron Vein',    time: 12500, xpReward: 45,  yields: 'Iron Ore',    unlockLevel: 3,  icon: Pickaxe, color: 'text-gray-400',   bg: 'bg-gray-400' },
+    { id: 'silver',  name: 'Silver Vein',  time: 18750, xpReward: 75,  yields: 'Silver Ore',  unlockLevel: 5,  icon: Pickaxe, color: 'text-slate-300',  bg: 'bg-slate-300' },
+    { id: 'gold',    name: 'Gold Vein',    time: 27500, xpReward: 110, yields: 'Gold Ore',    unlockLevel: 7,  icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
+    { id: 'mithril', name: 'Mithril Vein', time: 40000, xpReward: 160, yields: 'Mithril Ore', unlockLevel: 10, icon: Pickaxe, color: 'text-blue-500',   bg: 'bg-blue-500' }
   ]
 };
 
+// All materials with their required unlock level for the storage panel
 const ALL_MATERIALS = [
-  'Oak Log', 'Pine Log', 'Maple Log', 'Mahogany Log', 'Yew Log',
-  'Copper Ore', 'Iron Ore', 'Silver Ore', 'Gold Ore', 'Mithril Ore'
+  { name: 'Oak Log',      unlockLevel: 1  },
+  { name: 'Pine Log',     unlockLevel: 2  },
+  { name: 'Maple Log',    unlockLevel: 4  },
+  { name: 'Mahogany Log', unlockLevel: 6  },
+  { name: 'Yew Log',      unlockLevel: 8  },
+  { name: 'Copper Ore',   unlockLevel: 1  },
+  { name: 'Iron Ore',     unlockLevel: 3  },
+  { name: 'Silver Ore',   unlockLevel: 5  },
+  { name: 'Gold Ore',     unlockLevel: 7  },
+  { name: 'Mithril Ore',  unlockLevel: 10 },
 ];
 
 // --- CENTRAL GAME STATE ---
@@ -171,6 +181,14 @@ const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
   const speedMultiplier = Math.pow(1.25, handleLevel - 1);
   return (baseTime / speedMultiplier / 1000).toFixed(1);
 };
+
+// Returns the level at which the next worker is unlocked (or null if max)
+const nextWorkerUnlockLevel = () => {
+  if (state.workersTotal < 1) return 2;
+  if (state.workersTotal < 2) return 5;
+  if (state.workersTotal < 3) return 10;
+  return null;
+};
 </script>
 
 <template>
@@ -283,73 +301,97 @@ const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
             <div
               v-for="node in NODES[state.view]"
               :key="node.id"
-              class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm flex flex-col gap-3"
+              :class="[
+                'p-5 rounded-xl border shadow-sm flex flex-col gap-3 transition-all',
+                state.level >= node.unlockLevel
+                  ? 'bg-slate-800 border-slate-700'
+                  : 'bg-slate-900/50 border-slate-800 opacity-60'
+              ]"
             >
-              <div class="flex justify-between items-center">
+              <!-- LOCKED NODE -->
+              <div v-if="state.level < node.unlockLevel" class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <div :class="['p-2 rounded-md bg-slate-900 border border-slate-700', node.color]">
+                  <div class="p-2 rounded-md bg-slate-950 border border-slate-800 text-slate-600">
                     <component :is="node.icon" :size="24" />
                   </div>
                   <div>
-                    <h3 class="font-bold text-white">{{ node.name }}</h3>
-                    <p class="text-xs text-slate-400">Yields: {{ node.yields }} | XP: {{ node.xpReward }}</p>
+                    <h3 class="font-bold text-slate-500">{{ node.name }}</h3>
+                    <p class="text-xs text-slate-600">Yields: {{ node.yields }}</p>
                   </div>
                 </div>
-                <div class="text-sm font-mono text-slate-500">
-                  {{ getDynamicTime(state.view, node.time) }}s
+                <span class="text-xs font-semibold text-slate-500 bg-slate-800 border border-slate-700 px-3 py-1 rounded-full">
+                  🔒 Level {{ node.unlockLevel }}
+                </span>
+              </div>
+
+              <!-- UNLOCKED NODE -->
+              <template v-else>
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center gap-3">
+                    <div :class="['p-2 rounded-md bg-slate-900 border border-slate-700', node.color]">
+                      <component :is="node.icon" :size="24" />
+                    </div>
+                    <div>
+                      <h3 class="font-bold text-white">{{ node.name }}</h3>
+                      <p class="text-xs text-slate-400">Yields: {{ node.yields }} | XP: {{ node.xpReward }}</p>
+                    </div>
+                  </div>
+                  <div class="text-sm font-mono text-slate-500">
+                    {{ getDynamicTime(state.view, node.time) }}s
+                  </div>
                 </div>
-              </div>
 
-              <div class="flex gap-2 mt-2">
-                <button
-                  @click="startManualTask(node)"
-                  :disabled="state.manualAction !== null"
-                  :class="[
-                    'flex-1 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all',
-                    state.manualAction?.id === node.id
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : state.manualAction
-                        ? 'bg-slate-900 text-slate-600 cursor-not-allowed'
-                        : 'bg-slate-700 hover:bg-blue-600 text-white border border-slate-600 hover:border-blue-500'
-                  ]"
-                >
-                  {{ state.manualAction?.id === node.id ? 'Working...' : 'Start Action (Manual)' }}
-                </button>
+                <div class="flex gap-2 mt-2">
+                  <button
+                    @click="startManualTask(node)"
+                    :disabled="state.manualAction !== null"
+                    :class="[
+                      'flex-1 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all',
+                      state.manualAction?.id === node.id
+                        ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                        : state.manualAction
+                          ? 'bg-slate-900 text-slate-600 cursor-not-allowed'
+                          : 'bg-slate-700 hover:bg-blue-600 text-white border border-slate-600 hover:border-blue-500'
+                    ]"
+                  >
+                    {{ state.manualAction?.id === node.id ? 'Working...' : 'Start Action (Manual)' }}
+                  </button>
 
-                <button
-                  v-if="state.workersTotal > 0"
-                  @click="state.workerAction?.id === node.id ? recallWorker() : assignWorker(node)"
-                  :class="[
-                    'flex-1 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all border',
-                    state.workerAction?.id === node.id
-                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30'
-                      : 'bg-slate-900 text-slate-400 hover:text-amber-400 border-slate-700 hover:border-amber-500/50'
-                  ]"
-                >
-                  <User :size="16" />
-                  {{ state.workerAction?.id === node.id ? 'Recall Worker' : 'Assign Worker' }}
-                </button>
-              </div>
-
-              <div v-if="state.manualAction?.id === node.id" class="mt-1">
-                <p class="text-xs text-blue-400 font-medium mb-1 flex justify-between">
-                  <span>Player Progress</span>
-                  <span>{{ Math.floor((state.manualAction.progress / node.time) * 100) }}%</span>
-                </p>
-                <div class="w-full bg-slate-800 rounded-full h-3 mt-2 overflow-hidden border border-slate-700">
-                  <div class="h-full bg-blue-500 transition-all duration-100 ease-linear" :style="{ width: `${Math.min((state.manualAction.progress / node.time) * 100, 100)}%` }"></div>
+                  <button
+                    v-if="state.workersTotal > 0"
+                    @click="state.workerAction?.id === node.id ? recallWorker() : assignWorker(node)"
+                    :class="[
+                      'flex-1 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all border',
+                      state.workerAction?.id === node.id
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30'
+                        : 'bg-slate-900 text-slate-400 hover:text-amber-400 border-slate-700 hover:border-amber-500/50'
+                    ]"
+                  >
+                    <User :size="16" />
+                    {{ state.workerAction?.id === node.id ? 'Recall Worker' : 'Assign Worker' }}
+                  </button>
                 </div>
-              </div>
 
-              <div v-if="state.workerAction?.id === node.id" class="mt-1">
-                <p class="text-xs text-amber-400 font-medium mb-1 flex justify-between">
-                  <span>Worker Automating</span>
-                  <span>{{ Math.floor((state.workerAction.progress / node.time) * 100) }}%</span>
-                </p>
-                <div class="w-full bg-slate-800 rounded-full h-3 mt-2 overflow-hidden border border-slate-700">
-                  <div class="h-full bg-amber-500 transition-all duration-100 ease-linear" :style="{ width: `${Math.min((state.workerAction.progress / node.time) * 100, 100)}%` }"></div>
+                <div v-if="state.manualAction?.id === node.id" class="mt-1">
+                  <p class="text-xs text-blue-400 font-medium mb-1 flex justify-between">
+                    <span>Player Progress</span>
+                    <span>{{ Math.floor((state.manualAction.progress / node.time) * 100) }}%</span>
+                  </p>
+                  <div class="w-full bg-slate-800 rounded-full h-3 mt-2 overflow-hidden border border-slate-700">
+                    <div class="h-full bg-blue-500 transition-all duration-100 ease-linear" :style="{ width: `${Math.min((state.manualAction.progress / node.time) * 100, 100)}%` }"></div>
+                  </div>
                 </div>
-              </div>
+
+                <div v-if="state.workerAction?.id === node.id" class="mt-1">
+                  <p class="text-xs text-amber-400 font-medium mb-1 flex justify-between">
+                    <span>Worker Automating</span>
+                    <span>{{ Math.floor((state.workerAction.progress / node.time) * 100) }}%</span>
+                  </p>
+                  <div class="w-full bg-slate-800 rounded-full h-3 mt-2 overflow-hidden border border-slate-700">
+                    <div class="h-full bg-amber-500 transition-all duration-100 ease-linear" :style="{ width: `${Math.min((state.workerAction.progress / node.time) * 100, 100)}%` }"></div>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -517,12 +559,27 @@ const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
 
       <div class="w-full md:w-80 flex flex-col gap-6">
         
+        <!-- Worker panel -->
         <div v-if="state.workersTotal > 0" class="bg-amber-900/20 border border-amber-500/30 p-4 rounded-xl shadow-lg">
-          <h3 class="text-amber-400 font-bold flex items-center gap-2 mb-2">
-            <Box :size="18" /> Automation Unlocked
+          <h3 class="text-amber-400 font-bold flex items-center gap-2 mb-1">
+            <User :size="18" /> Workers: {{ state.workersTotal }} / 3
           </h3>
           <p class="text-sm text-amber-200/70 leading-relaxed">
-            You have a worker available! Assign them to a task and they will loop it continuously without your input.
+            Workers run at 10% speed — stay active for full efficiency!
+          </p>
+          <p v-if="nextWorkerUnlockLevel()" class="text-xs text-amber-300/50 mt-2">
+            Next worker unlocks at level {{ nextWorkerUnlockLevel() }}
+          </p>
+          <p v-else class="text-xs text-amber-300/50 mt-2">Max workers reached!</p>
+        </div>
+
+        <!-- Pre-worker hint -->
+        <div v-if="state.workersTotal === 0" class="bg-slate-800 border border-slate-700 p-4 rounded-xl shadow-lg">
+          <h3 class="text-slate-400 font-bold flex items-center gap-2 mb-1">
+            <User :size="18" /> Workers
+          </h3>
+          <p class="text-sm text-slate-500 leading-relaxed">
+            Reach level 2 to unlock your first worker!
           </p>
         </div>
 
@@ -531,17 +588,18 @@ const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
             <Box :size="20" class="text-slate-400" /> Storage
           </h2>
           
-          <div class="space-y-4 flex-1">
-            <template v-for="itemName in ALL_MATERIALS" :key="itemName">
-              <div class="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
+          <div class="space-y-2 flex-1">
+            <template v-for="item in ALL_MATERIALS" :key="item.name">
+              <!-- Only show if the player has reached the required level -->
+              <div v-if="state.level >= item.unlockLevel" class="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
                 <div class="flex items-center gap-3">
-                  <Axe v-if="itemName.includes('Log')" :size="16" class="text-slate-500" />
-                  <Gem v-else-if="itemName.includes('Ore')" :size="16" class="text-slate-500" />
+                  <Axe v-if="item.name.includes('Log')" :size="16" class="text-slate-500" />
+                  <Gem v-else-if="item.name.includes('Ore')" :size="16" class="text-slate-500" />
                   <Box v-else :size="16" class="text-slate-500" />
-                  <span class="font-medium text-slate-300">{{ itemName }}</span>
+                  <span class="font-medium text-slate-300">{{ item.name }}</span>
                 </div>
                 <span class="font-bold text-white font-mono bg-slate-800 px-2 py-1 rounded">
-                  {{ (state.inventory[itemName] || 0).toLocaleString() }}
+                  {{ (state.inventory[item.name] || 0).toLocaleString() }}
                 </span>
               </div>
             </template>

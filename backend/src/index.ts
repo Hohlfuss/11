@@ -183,7 +183,7 @@ setInterval(() => {
       const handleLevel = state.tools?.[skill]?.handle || 1;
       const speedMultiplier = Math.pow(1.25, handleLevel - 1); // +25% compounding speed per level
 
-      state.workerAction.progress += (100 * speedMultiplier);
+      state.workerAction.progress += (10 * speedMultiplier); // 10% of manual speed to encourage active play
       stateChanged = true;
       
       if (state.workerAction.progress >= state.workerAction.time) {
@@ -215,9 +215,10 @@ setInterval(() => {
         state.level += 1;
         state.xp -= state.xp_needed;
         state.xp_needed = Math.floor(state.xp_needed * 1.6);
-        if (state.level >= 2 && state.workers_total === 0) {
-          state.workers_total = 1;
-        }
+        // Grant workers at levels 2, 5, and 10 (max 3)
+        if (state.level >= 2 && state.workers_total < 1) state.workers_total = 1;
+        if (state.level >= 5 && state.workers_total < 2) state.workers_total = 2;
+        if (state.level >= 10 && state.workers_total < 3) state.workers_total = 3;
       }
       stateChanged = true;
     }
