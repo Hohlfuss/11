@@ -175,6 +175,7 @@ app.get('/status', (req: Request, res: Response) => {
   res.json({ status: 'game server running' });
 });
 
-httpServer.listen(port, () => {
-  console.log(`[server]: Listening at ${port}`);
+// Cast port to a Number and explicitly bind to '0.0.0.0'
+httpServer.listen(Number(port), '0.0.0.0', () => {
+  console.log(`[server]: Listening on port ${port}`);
 });
