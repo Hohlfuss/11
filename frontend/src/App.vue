@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, computed, onMounted, onUnmounted } from 'vue';
+import { reactive, computed, onMounted, onUnmounted, ref } from 'vue';
 import { TransitionGroup } from 'vue';
 import { io } from 'socket.io-client';
 import { 
@@ -15,6 +15,18 @@ import {
   Wrench,
   Leaf
 } from 'lucide-vue-next';
+
+const leaderboard = reactive({
+  isOpen: false,
+  activeTab: "level",
+  data: [] as any[]
+});
+
+//functio kysyy serveriltä statseja
+const fetchLeaderboard = (category: string) => {
+  leaderboard.activeTab = category;
+  socket.emit("requestLeaderboard", category);
+};
 
 // This will use your Render backend in production, or fallback to relative/local in dev
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://one1-x2mf.onrender.com';
@@ -160,6 +172,11 @@ onMounted(() => {
 
   socket.on('gameStateUpdate', (newState) => {
     updateLocalState(newState); 
+  });
+
+  socket.on("leaderboardData", (payload) => {
+    leaderboard.data = payload.players;
+    leaderboard.isOpen = true;
   });
 });
 
@@ -432,6 +449,50 @@ const nextWorkerUnlockLevel = () => {
             </div>
             <ChevronRight class="text-slate-500 group-hover:text-white transition-colors" />
           </button>
+        </div>
+
+        <button @click="fetchLeaderboard('level')" class="bg-yellow-600 p-2 rounded text-white font-bold mb-4">
+  🏆      View High Scores
+        </button>
+
+        <div v-if="leaderboard.isOpen" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full overflow-hidden">
+            
+            <div class="p-4 bg-slate-950 flex justify-between items-center border-b border-slate-700">
+              <h2 class="text-xl font-bold text-white">Leaderboards</h2>
+              <button @click="leaderboard.isOpen = false" class="text-red-400 font-bold">X CLOSE</button>
+            </div>
+            
+            <div class="flex border-b border-slate-700 bg-slate-900">
+              <button @click="fetchLeaderboard('level')" :class="{'bg-slate-800 text-yellow-400': leaderboard.activeTab === 'level'}" class="flex-1 p-3 text-slate-300 font-bold hover:bg-slate-800 transition">Highest Level</button>
+              <button @click="fetchLeaderboard('total_clicks')" :class="{'bg-slate-800 text-blue-400': leaderboard.activeTab === 'total_clicks'}" class="flex-1 p-3 text-slate-300 font-bold hover:bg-slate-800 transition">Most Clicks</button>
+              <button @click="fetchLeaderboard('total_gathered')" :class="{'bg-slate-800 text-green-400': leaderboard.activeTab === 'total_gathered'}" class="flex-1 p-3 text-slate-300 font-bold hover:bg-slate-800 transition">Most Gathered</button>
+            </div>
+
+            <div class="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+              <div v-for="(player, index) in leaderboard.data" :key="player.username" 
+                  class="flex justify-between items-center p-3 bg-slate-800 rounded-lg border border-slate-700">
+                
+                <div class="flex items-center gap-3 text-white">
+                  <span class="text-xl font-black text-slate-500 w-6">#{{ index + 1 }}</span>
+                  <span class="font-bold text-lg">{{ player.username }}</span>
+                  <span class="text-sm bg-slate-950 px-2 py-1 rounded text-slate-300">Lvl {{ player.level }}</span>
+                </div>
+
+                <div class="font-mono text-lg font-bold">
+                  <span v-if="leaderboard.activeTab === 'level'" class="text-yellow-400">XP: {{ player.xp }}</span>
+                  <span v-else-if="leaderboard.activeTab === 'total_clicks'" class="text-blue-400">{{ player.total_clicks || 0 }} Clicks</span>
+                  <span v-else-if="leaderboard.activeTab === 'total_gathered'" class="text-green-400">{{ player.total_gathered || 0 }} Items</span>
+                </div>
+                
+              </div>
+              
+              <div v-if="leaderboard.data.length === 0" class="text-center text-slate-500 py-8">
+                No data found for this category yet.
+              </div>
+            </div>
+            
+          </div>
         </div>
 
         <div v-if="state.view === 'woodcutting' || state.view === 'mining' || state.view === 'foraging'" class="flex flex-col h-full">

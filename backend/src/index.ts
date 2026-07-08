@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { getPlayer, createPlayer, savePlayer } from './db.js';
+import { getPlayer, createPlayer, savePlayer, getTopPlayers } from './db.js';
 import { applyToolUpgrade } from './gameLogic.js';
 import bcrypt from "bcrypt";
 
@@ -108,12 +108,23 @@ io.on('connection', (socket) => {
       return;
     }
 
+    state.total_clicks = (state.total_clicks || 0) + 1;
+
     state.manualAction = {
       ...actionPayload,
       progress: 0
     };
     
     socket.emit('gameStateUpdate', state);
+  });
+
+  // 3. NEW LISTENER: FETCH LEADERBOARDS
+  socket.on('requestLeaderboard', async (category) => {
+    // category will be 'level', 'total_clicks', or 'total_gathered'
+    const top10 = await getTopPlayers(category);
+    
+    // Send it right back to whoever asked for it
+    socket.emit('leaderboardData', { category, players: top10 });
   });
 
   // --- ASSIGN A WORKER ---
@@ -196,6 +207,7 @@ setInterval(() => {
 
         xpGained += Math.floor(state.manualAction.xpReward * xpMultiplier);
         resGained[state.manualAction.yields] = (resGained[state.manualAction.yields] || 0) + (1 * metalLevel);
+        state.total_gathered = (state.total_gathered || 0) + (1 * metalLevel);
         state.manualAction = null;
       }
     }
@@ -220,6 +232,7 @@ setInterval(() => {
 
           xpGained += Math.floor(workerAction.xpReward * xpMultiplier);
           resGained[workerAction.yields] = (resGained[workerAction.yields] || 0) + (1 * metalLevel);
+          state.total_gathered = (state.total_gathered || 0) + (1 * metalLevel);
           workerAction.progress = 0;
         }
       }
