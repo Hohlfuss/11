@@ -58,6 +58,9 @@ io.on('connection', (socket) => {
   // --- LOGIN LOGIC ---
   socket.on('playerLogin', async (payload) => {
     const { username, password } = payload;
+  
+    // ---> ADD THIS: Attach the username to this specific connection
+    socket.data = { username };
 
     try {
       let { data, error } = await getPlayer(username);
@@ -75,6 +78,15 @@ io.on('connection', (socket) => {
       // Initialize memory state
       const defaultInventory = { 'Oak Log': 0, /* ... fill defaults ... */ };
       data.inventory = { ...defaultInventory, ...(data.inventory || {}) };
+
+      // ---> ADD THIS BLOCK: Ensure 'tools' exists so the frontend doesn't crash
+      const defaultTools = {
+        woodcutting: { handle: 1, metal: 1, grip: 1 },
+        mining: { handle: 1, metal: 1, grip: 1 },
+        foraging: { handle: 1, bindings: 1, grip: 1 }
+      };
+      data.tools = { ...defaultTools, ...(data.tools || {}) };
+      // <---
 
       activePlayers.set(username, { ...data, socketId: socket.id, workerActions: [], pendingEvents: [] });
       socket.emit('loginSuccess', activePlayers.get(username));
