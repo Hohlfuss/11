@@ -94,6 +94,42 @@ io.on('connection', (socket) => {
       socket.emit('loginError', 'Server error during login.');
     }
   });
+
+  // --- GAME ACTIONS ---
+  socket.on('startManualAction', (actionPayload) => {
+    // 1. Identify which player clicked the button
+    const username = socket.data?.username;
+    if (!username) return; // Ignore if not logged in
+
+    // 2. Fetch their active game state from memory
+    const state = activePlayers.get(username);
+    if (!state) return;
+
+    // 3. Set the manual action and reset progress to 0
+    state.manualAction = {
+      ...actionPayload,
+      progress: 0
+    };
+    
+    // (Optional) Force an immediate update so the UI feels responsive
+    socket.emit('gameStateUpdate', state);
+  });
+  
+  // You will also need your upgrade handler if it's missing!
+  socket.on('upgradeTool', (payload) => {
+    const username = socket.data?.username;
+    if (!username) return;
+
+    const state = activePlayers.get(username);
+    if (!state) return;
+
+    const { skill, part } = payload;
+    const success = applyToolUpgrade(state, skill, part);
+    
+    if (success) {
+      socket.emit('gameStateUpdate', state);
+    }
+  });
 });
 
 // --- THE GAME LOOP (Tick Rate: 100ms) ---
