@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive, onMounted, onUnmounted } from 'vue';
+import { reactive, computed, ref, onMounted, onUnmounted } from 'vue';
+import { TransitionGroup } from 'vue';
 import { io } from 'socket.io-client';
 import { 
   Trees, 
@@ -69,12 +70,30 @@ const state = reactive({
   workersTotal: 0,
   inventory: {} as Record<string, number>,
   manualAction: null as any,
-  workerAction: null as any,
+  workerActions: [] as any[],
   tools: {
-    woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1 },
-    mining: { handle: 1, metal: 1, grip: 1, enchantment: 1 }
+    woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1 },
+    mining:      { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1 }
   }
 });
+
+// --- NOTIFICATIONS ---
+interface Notification {
+  id: number;
+  type: 'levelup' | 'crit';
+  title: string;
+  sub?: string;
+}
+let _notifId = 0;
+const notifications = reactive<Notification[]>([]);
+const addNotif = (n: Omit<Notification, 'id'>) => {
+  const id = ++_notifId;
+  notifications.push({ ...n, id });
+  setTimeout(() => {
+    const i = notifications.findIndex(x => x.id === id);
+    if (i !== -1) notifications.splice(i, 1);
+  }, 2500);
+};
 
 // --- LISTEN TO THE SERVER ---
 onMounted(() => {
@@ -95,13 +114,28 @@ onMounted(() => {
 
 
 const updateLocalState = (serverState: any) => {
+  // Level-up detection BEFORE updating level
+  const prevLevel = state.level;
+
   state.level = serverState.level;
   state.xp = serverState.xp;
   state.xpNeeded = serverState.xp_needed;
   state.workersTotal = serverState.workers_total;
   state.inventory = { ...(serverState.inventory ?? {}) };
   state.manualAction = serverState.manualAction ?? null;
-  state.workerAction = serverState.workerAction ?? null;
+  state.workerActions = serverState.workerActions ?? [];
+
+  // Fire level-up notification
+  if (serverState.level > prevLevel) {
+    addNotif({ type: 'levelup', title: `⬆ Level Up! → ${serverState.level}`, sub: 'Keep going!' });
+  }
+
+  // Fire crit notifications from pending events
+  for (const evt of (serverState.pendingEvents ?? [])) {
+    if (evt.type === 'crit') {
+      addNotif({ type: 'crit', title: `⚡ CRIT ×${evt.multiplier}!`, sub: evt.item });
+    }
+  }
 
   // BULLETPROOF PARSING: Ensure tools is safely read even if it's a string or null
   let incomingTools = serverState.tools;
@@ -112,16 +146,20 @@ const updateLocalState = (serverState: any) => {
   if (incomingTools && typeof incomingTools === 'object') {
     state.tools = {
       woodcutting: {
-        handle: incomingTools.woodcutting?.handle ?? state.tools?.woodcutting?.handle ?? 1,
-        metal: incomingTools.woodcutting?.metal ?? state.tools?.woodcutting?.metal ?? 1,
-        grip: incomingTools.woodcutting?.grip ?? state.tools?.woodcutting?.grip ?? 1,
-        enchantment: incomingTools.woodcutting?.enchantment ?? state.tools?.woodcutting?.enchantment ?? 1
+        handle:      incomingTools.woodcutting?.handle      ?? state.tools?.woodcutting?.handle      ?? 1,
+        metal:       incomingTools.woodcutting?.metal       ?? state.tools?.woodcutting?.metal       ?? 1,
+        grip:        incomingTools.woodcutting?.grip        ?? state.tools?.woodcutting?.grip        ?? 1,
+        enchantment: incomingTools.woodcutting?.enchantment ?? state.tools?.woodcutting?.enchantment ?? 1,
+        critChance:  incomingTools.woodcutting?.critChance  ?? state.tools?.woodcutting?.critChance  ?? 1,
+        critDamage:  incomingTools.woodcutting?.critDamage  ?? state.tools?.woodcutting?.critDamage  ?? 1,
       },
       mining: {
-        handle: incomingTools.mining?.handle ?? state.tools?.mining?.handle ?? 1,
-        metal: incomingTools.mining?.metal ?? state.tools?.mining?.metal ?? 1,
-        grip: incomingTools.mining?.grip ?? state.tools?.mining?.grip ?? 1,
-        enchantment: incomingTools.mining?.enchantment ?? state.tools?.mining?.enchantment ?? 1
+        handle:      incomingTools.mining?.handle      ?? state.tools?.mining?.handle      ?? 1,
+        metal:       incomingTools.mining?.metal       ?? state.tools?.mining?.metal       ?? 1,
+        grip:        incomingTools.mining?.grip        ?? state.tools?.mining?.grip        ?? 1,
+        enchantment: incomingTools.mining?.enchantment ?? state.tools?.mining?.enchantment ?? 1,
+        critChance:  incomingTools.mining?.critChance  ?? state.tools?.mining?.critChance  ?? 1,
+        critDamage:  incomingTools.mining?.critDamage  ?? state.tools?.mining?.critDamage  ?? 1,
       }
     };
   }
@@ -153,28 +191,36 @@ const assignWorker = (node: any) => {
   socket.emit('playerAction', { type: 'assignWorker', node });
 };
 
-const recallWorker = () => {
-  socket.emit('playerAction', { type: 'recallWorker' });
+const recallWorker = (nodeId: string) => {
+  socket.emit('playerAction', { type: 'recallWorker', nodeId });
 };
 
 // --- CRAFTING ACTIONS ---
-const upgradeTool = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal' | 'grip' | 'enchantment') => {
+const upgradeTool = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal' | 'grip' | 'enchantment' | 'critChance' | 'critDamage') => {
   socket.emit('playerAction', { type: 'upgradeTool', skill, part });
 };
 
 // Helpers for the UI to display costs (Safely defaults to level 1 if undefined)
 const getUpgradeCost = (level?: number) => Math.floor(15 * Math.pow(1.8, (level || 1) - 1));
 
-const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal' | 'grip' | 'enchantment') => {
+const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: string) => {
   if (skill === 'mining') {
-    if (part === 'grip') return 'Silver Ore';
+    if (part === 'grip')        return 'Silver Ore';
     if (part === 'enchantment') return 'Gold Ore';
+    if (part === 'critChance')  return 'Iron Ore';
+    if (part === 'critDamage')  return 'Mithril Ore';
     return part === 'handle' ? 'Copper Ore' : 'Iron Ore';
   }
-  if (part === 'grip') return 'Maple Log';
+  if (part === 'grip')        return 'Maple Log';
   if (part === 'enchantment') return 'Mahogany Log';
+  if (part === 'critChance')  return 'Pine Log';
+  if (part === 'critDamage')  return 'Yew Log';
   return part === 'handle' ? 'Oak Log' : 'Copper Ore';
 };
+
+// --- WORKER HELPERS ---
+const workersAvailable = computed(() => state.workersTotal - state.workerActions.length);
+const workersOnNode    = (nodeId: string) => state.workerActions.filter((w: any) => w.id === nodeId);
 
 const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
   const handleLevel = state.tools?.[skill]?.handle || 1;
@@ -191,7 +237,36 @@ const nextWorkerUnlockLevel = () => {
 };
 </script>
 
+<style>
+/* Notification slide-in / fade-out */
+.notif-enter-active  { transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.notif-leave-active  { transition: all 0.4s ease-in; }
+.notif-enter-from    { transform: translateX(110%); opacity: 0; }
+.notif-leave-to      { transform: translateX(110%); opacity: 0; }
+</style>
+
 <template>
+  <!-- Notifications overlay (fixed, top-right) -->
+  <TransitionGroup
+    name="notif"
+    tag="div"
+    class="fixed top-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"
+  >
+    <div
+      v-for="n in notifications"
+      :key="n.id"
+      :class="[
+        'px-4 py-3 rounded-xl shadow-2xl border text-sm font-bold min-w-[180px]',
+        n.type === 'levelup'
+          ? 'bg-blue-900/95 border-blue-400/60 text-blue-100 shadow-blue-900/50'
+          : 'bg-yellow-900/95 border-yellow-400/60 text-yellow-100 shadow-yellow-900/50'
+      ]"
+    >
+      {{ n.title }}
+      <p v-if="n.sub" class="text-xs font-normal mt-0.5 opacity-70">{{ n.sub }}</p>
+    </div>
+  </TransitionGroup>
+
   <div class="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 flex flex-col md:flex-row gap-6">
     
     <div v-if="!auth.isAuthenticated" class="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl">
@@ -231,7 +306,7 @@ const nextWorkerUnlockLevel = () => {
           <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">
             <User :class="state.workersTotal > 0 ? 'text-amber-400' : 'text-slate-600'" :size="18" />
             <span class="text-sm font-medium">
-              Workers: {{ state.workerAction ? 0 : state.workersTotal }} / {{ state.workersTotal }}
+              Workers: {{ workersAvailable }} / {{ state.workersTotal }}
             </span>
           </div>
         </div>
@@ -342,6 +417,7 @@ const nextWorkerUnlockLevel = () => {
                 </div>
 
                 <div class="flex gap-2 mt-2">
+                  <!-- Manual action button -->
                   <button
                     @click="startManualTask(node)"
                     :disabled="state.manualAction !== null"
@@ -357,21 +433,26 @@ const nextWorkerUnlockLevel = () => {
                     {{ state.manualAction?.id === node.id ? 'Working...' : 'Start Action (Manual)' }}
                   </button>
 
-                  <button
-                    v-if="state.workersTotal > 0"
-                    @click="state.workerAction?.id === node.id ? recallWorker() : assignWorker(node)"
-                    :class="[
-                      'flex-1 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all border',
-                      state.workerAction?.id === node.id
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30'
-                        : 'bg-slate-900 text-slate-400 hover:text-amber-400 border-slate-700 hover:border-amber-500/50'
-                    ]"
-                  >
-                    <User :size="16" />
-                    {{ state.workerAction?.id === node.id ? 'Recall Worker' : 'Assign Worker' }}
-                  </button>
+                  <!-- Worker controls: recall one + assign one -->
+                  <template v-if="state.workersTotal > 0">
+                    <button
+                      v-if="workersOnNode(node.id).length > 0"
+                      @click="recallWorker(node.id)"
+                      class="py-2 px-3 rounded-lg font-medium text-sm flex items-center justify-center gap-1 transition-all border bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30"
+                    >
+                      <User :size="14" /> -{{ workersOnNode(node.id).length }}
+                    </button>
+                    <button
+                      v-if="workersAvailable > 0"
+                      @click="assignWorker(node)"
+                      class="py-2 px-3 rounded-lg font-medium text-sm flex items-center justify-center gap-1 transition-all border bg-slate-900 text-slate-400 hover:text-amber-400 border-slate-700 hover:border-amber-500/50"
+                    >
+                      <User :size="14" /> +1
+                    </button>
+                  </template>
                 </div>
 
+                <!-- Manual progress bar -->
                 <div v-if="state.manualAction?.id === node.id" class="mt-1">
                   <p class="text-xs text-blue-400 font-medium mb-1 flex justify-between">
                     <span>Player Progress</span>
@@ -382,13 +463,14 @@ const nextWorkerUnlockLevel = () => {
                   </div>
                 </div>
 
-                <div v-if="state.workerAction?.id === node.id" class="mt-1">
+                <!-- Worker progress bars (one per assigned worker) -->
+                <div v-for="(w, idx) in workersOnNode(node.id)" :key="idx" class="mt-1">
                   <p class="text-xs text-amber-400 font-medium mb-1 flex justify-between">
-                    <span>Worker Automating</span>
-                    <span>{{ Math.floor((state.workerAction.progress / node.time) * 100) }}%</span>
+                    <span>Worker #{{ idx + 1 }} Automating</span>
+                    <span>{{ Math.floor((w.progress / node.time) * 100) }}%</span>
                   </p>
-                  <div class="w-full bg-slate-800 rounded-full h-3 mt-2 overflow-hidden border border-slate-700">
-                    <div class="h-full bg-amber-500 transition-all duration-100 ease-linear" :style="{ width: `${Math.min((state.workerAction.progress / node.time) * 100, 100)}%` }"></div>
+                  <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                    <div class="h-full bg-amber-500 transition-all duration-100 ease-linear" :style="{ width: `${Math.min((w.progress / node.time) * 100, 100)}%` }"></div>
                   </div>
                 </div>
               </template>
@@ -475,6 +557,42 @@ const nextWorkerUnlockLevel = () => {
                     Upgrade
                   </button>
                 </div>
+
+                <!-- Crit Chance -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-yellow-300/80">⚡ Lucky Strike Chance (Lvl {{ state.tools?.woodcutting?.critChance || 1 }})</h4>
+                    <p class="text-xs text-slate-400">+5% crit chance per level — crits multiply yield</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('woodcutting', 'critChance')] || 0) >= getUpgradeCost(state.tools?.woodcutting?.critChance) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.woodcutting?.critChance) }} {{ getUpgradeResource('woodcutting', 'critChance') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('woodcutting', 'critChance')"
+                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'critChance')] || 0) < getUpgradeCost(state.tools?.woodcutting?.critChance)"
+                    class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <!-- Crit Damage -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-orange-300/80">🔥 Lucky Strike Power (Lvl {{ state.tools?.woodcutting?.critDamage || 1 }})</h4>
+                    <p class="text-xs text-slate-400">Crit yield ×{{ (state.tools?.woodcutting?.critDamage || 1) + 1 }} — grows with each level</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('woodcutting', 'critDamage')] || 0) >= getUpgradeCost(state.tools?.woodcutting?.critDamage) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.woodcutting?.critDamage) }} {{ getUpgradeResource('woodcutting', 'critDamage') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('woodcutting', 'critDamage')"
+                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'critDamage')] || 0) < getUpgradeCost(state.tools?.woodcutting?.critDamage)"
+                    class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -547,6 +665,42 @@ const nextWorkerUnlockLevel = () => {
                     @click="upgradeTool('mining', 'enchantment')"
                     :disabled="(state.inventory[getUpgradeResource('mining', 'enchantment')] || 0) < getUpgradeCost(state.tools?.mining?.enchantment)"
                     class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <!-- Crit Chance -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-yellow-300/80">⚡ Prospector's Eye (Lvl {{ state.tools?.mining?.critChance || 1 }})</h4>
+                    <p class="text-xs text-slate-400">+5% crit chance per level — crits multiply ore yield</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('mining', 'critChance')] || 0) >= getUpgradeCost(state.tools?.mining?.critChance) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.mining?.critChance) }} {{ getUpgradeResource('mining', 'critChance') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('mining', 'critChance')"
+                    :disabled="(state.inventory[getUpgradeResource('mining', 'critChance')] || 0) < getUpgradeCost(state.tools?.mining?.critChance)"
+                    class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <!-- Crit Damage -->
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-orange-300/80">🔥 Deep Strike Power (Lvl {{ state.tools?.mining?.critDamage || 1 }})</h4>
+                    <p class="text-xs text-slate-400">Crit yield ×{{ (state.tools?.mining?.critDamage || 1) + 1 }} — grows with each level</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('mining', 'critDamage')] || 0) >= getUpgradeCost(state.tools?.mining?.critDamage) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.mining?.critDamage) }} {{ getUpgradeResource('mining', 'critDamage') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('mining', 'critDamage')"
+                    :disabled="(state.inventory[getUpgradeResource('mining', 'critDamage')] || 0) < getUpgradeCost(state.tools?.mining?.critDamage)"
+                    class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
                   >
                     Upgrade
                   </button>

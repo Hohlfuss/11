@@ -58,7 +58,7 @@ io.on('connection', (socket) => {
       const defaultInventory = { 'Oak Log': 0, 'Pine Log': 0, 'Maple Log': 0, 'Mahogany Log': 0, 'Yew Log': 0, 'Copper Ore': 0, 'Iron Ore': 0, 'Silver Ore': 0, 'Gold Ore': 0, 'Mithril Ore': 0 };
       data.inventory = { ...defaultInventory, ...(data.inventory || {}) };
       
-      activePlayers.set(username, { ...data, socketId: socket.id });
+      activePlayers.set(username, { ...data, socketId: socket.id, workerActions: [], pendingEvents: [] });
 
       // 4. Send success to client
       socket.emit('loginSuccess', activePlayers.get(username));
@@ -81,11 +81,17 @@ io.on('connection', (socket) => {
         }
         
         if (type === 'assignWorker' && state.workers_total > 0) {
-          state.workerAction = { ...node, progress: 0 };
+          if (!state.workerActions) state.workerActions = [];
+          if (state.workerActions.length < state.workers_total) {
+            state.workerActions.push({ ...node, progress: 0 });
+          }
         }
         
         if (type === 'recallWorker') {
-          state.workerAction = null;
+          if (!state.workerActions) state.workerActions = [];
+          const { nodeId } = payload;
+          const idx = state.workerActions.findIndex((w: any) => w.id === nodeId);
+          if (idx !== -1) state.workerActions.splice(idx, 1);
         }
         
         // --- ADD THIS BLOCK ---
@@ -95,19 +101,22 @@ io.on('connection', (socket) => {
           // Ensure the tools object exists for players created before this update
           if (!state.tools) {
             state.tools = {
-              woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1 },
-              mining: { handle: 1, metal: 1, grip: 1, enchantment: 1 }
+              woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1 },
+              mining:      { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1 }
             };
-          } else if (!state.tools.woodcutting.grip) {
-            state.tools.woodcutting.grip = 1;
-            state.tools.woodcutting.enchantment = 1;
-            state.tools.mining.grip = 1;
-            state.tools.mining.enchantment = 1;
+          } else {
+            // Backfill any missing fields for older players
+            ['woodcutting', 'mining'].forEach((s) => {
+              if (!state.tools[s].grip)       state.tools[s].grip       = 1;
+              if (!state.tools[s].enchantment) state.tools[s].enchantment = 1;
+              if (!state.tools[s].critChance) state.tools[s].critChance = 1;
+              if (!state.tools[s].critDamage) state.tools[s].critDamage = 1;
+            });
           }
 
           const costMap: Record<string, Record<string, string>> = {
-            woodcutting: { handle: 'Oak Log', metal: 'Copper Ore', grip: 'Maple Log', enchantment: 'Mahogany Log' },
-            mining: { handle: 'Copper Ore', metal: 'Iron Ore', grip: 'Silver Ore', enchantment: 'Gold Ore' }
+            woodcutting: { handle: 'Oak Log', metal: 'Copper Ore', grip: 'Maple Log', enchantment: 'Mahogany Log', critChance: 'Pine Log',    critDamage: 'Yew Log'     },
+            mining:      { handle: 'Copper Ore', metal: 'Iron Ore', grip: 'Silver Ore', enchantment: 'Gold Ore',   critChance: 'Iron Ore',    critDamage: 'Mithril Ore' }
           };
 
           const currentLevel = state.tools[skill][part] || 1;
@@ -160,12 +169,22 @@ setInterval(() => {
       stateChanged = true;
 
       if (state.manualAction.progress >= state.manualAction.time) {
-        const metalLevel = state.tools?.[skill]?.metal || 1;
-        const gripLevel = state.tools?.[skill]?.grip || 1;
+        const metalLevel       = state.tools?.[skill]?.metal       || 1;
+        const gripLevel        = state.tools?.[skill]?.grip        || 1;
         const enchantmentLevel = state.tools?.[skill]?.enchantment || 1;
+        const critChanceLevel  = state.tools?.[skill]?.critChance  || 1;
+        const critDamageLevel  = state.tools?.[skill]?.critDamage  || 1;
 
         let yieldAmount = 1 * metalLevel;
-        if (Math.random() < (gripLevel - 1) * 0.05) yieldAmount *= 2;
+        if (Math.random() < (gripLevel - 1) * 0.05) yieldAmount *= 2; // grip bonus
+
+        // Crit check — fire a pendingEvent so the frontend can show feedback
+        if (Math.random() < (critChanceLevel - 1) * 0.05) {
+          const mult = 1 + critDamageLevel;
+          yieldAmount *= mult;
+          if (!state.pendingEvents) state.pendingEvents = [];
+          state.pendingEvents.push({ type: 'crit', nodeId: state.manualAction.id, item: state.manualAction.yields, multiplier: mult });
+        }
 
         let xpAmount = state.manualAction.xpReward;
         if (Math.random() < (enchantmentLevel - 1) * 0.05) xpAmount *= 2;
@@ -176,30 +195,33 @@ setInterval(() => {
       }
     }
 
-    // 2. Process Worker Action
-    if (state.workerAction) {
-      // Infer skill based on the yield name
-      const skill = state.workerAction.yields.includes('Log') ? 'woodcutting' : 'mining';
+    // 2. Process Worker Actions (one progress tick per worker)
+    if (!state.workerActions) state.workerActions = [];
+    for (const wa of state.workerActions) {
+      const skill = wa.yields.includes('Log') ? 'woodcutting' : 'mining';
       const handleLevel = state.tools?.[skill]?.handle || 1;
-      const speedMultiplier = Math.pow(1.25, handleLevel - 1); // +25% compounding speed per level
+      const speedMultiplier = Math.pow(1.25, handleLevel - 1);
 
-      state.workerAction.progress += (10 * speedMultiplier); // 10% of manual speed to encourage active play
+      wa.progress += (10 * speedMultiplier); // 10% of manual speed
       stateChanged = true;
-      
-      if (state.workerAction.progress >= state.workerAction.time) {
-        const metalLevel = state.tools?.[skill]?.metal || 1;
-        const gripLevel = state.tools?.[skill]?.grip || 1;
+
+      if (wa.progress >= wa.time) {
+        const metalLevel       = state.tools?.[skill]?.metal       || 1;
+        const gripLevel        = state.tools?.[skill]?.grip        || 1;
         const enchantmentLevel = state.tools?.[skill]?.enchantment || 1;
+        const critChanceLevel  = state.tools?.[skill]?.critChance  || 1;
+        const critDamageLevel  = state.tools?.[skill]?.critDamage  || 1;
 
         let yieldAmount = 1 * metalLevel;
-        if (Math.random() < (gripLevel - 1) * 0.05) yieldAmount *= 2;
+        if (Math.random() < (gripLevel - 1) * 0.05)        yieldAmount *= 2;
+        if (Math.random() < (critChanceLevel - 1) * 0.05)  yieldAmount *= (1 + critDamageLevel);
 
-        let xpAmount = state.workerAction.xpReward;
+        let xpAmount = wa.xpReward;
         if (Math.random() < (enchantmentLevel - 1) * 0.05) xpAmount *= 2;
 
         xpGained += xpAmount;
-        resGained[state.workerAction.yields] = (resGained[state.workerAction.yields] || 0) + yieldAmount;
-        state.workerAction.progress = 0;
+        resGained[wa.yields] = (resGained[wa.yields] || 0) + yieldAmount;
+        wa.progress = 0; // loop
       }
     }
 
@@ -228,7 +250,11 @@ setInterval(() => {
       const socket = io.sockets.sockets.get(state.socketId);
       if (socket) {
         socket.emit('gameStateUpdate', state);
+        state.pendingEvents = []; // clear after sending so events don't fire twice
       }
+    } else {
+      // Always clear pending events even if state didn't change this tick
+      state.pendingEvents = [];
     }
   }
 }, 100);
