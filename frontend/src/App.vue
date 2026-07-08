@@ -103,11 +103,15 @@ const updateLocalState = (serverState: any) => {
     state.tools = {
       woodcutting: {
         handle: incomingTools.woodcutting?.handle ?? state.tools?.woodcutting?.handle ?? 1,
-        metal: incomingTools.woodcutting?.metal ?? state.tools?.woodcutting?.metal ?? 1
+        metal: incomingTools.woodcutting?.metal ?? state.tools?.woodcutting?.metal ?? 1,
+        grip: incomingTools.woodcutting?.grip ?? state.tools?.woodcutting?.grip ?? 1,
+        enchantment: incomingTools.woodcutting?.enchantment ?? state.tools?.woodcutting?.enchantment ?? 1
       },
       mining: {
         handle: incomingTools.mining?.handle ?? state.tools?.mining?.handle ?? 1,
-        metal: incomingTools.mining?.metal ?? state.tools?.mining?.metal ?? 1
+        metal: incomingTools.mining?.metal ?? state.tools?.mining?.metal ?? 1,
+        grip: incomingTools.mining?.grip ?? state.tools?.mining?.grip ?? 1,
+        enchantment: incomingTools.mining?.enchantment ?? state.tools?.mining?.enchantment ?? 1
       }
     };
   }
