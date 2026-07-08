@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, computed, onMounted, onUnmounted, ref } from 'vue';
+import { reactive, computed, onMounted, onUnmounted } from 'vue';
 import { TransitionGroup } from 'vue';
 import { io } from 'socket.io-client';
 import { 
@@ -266,8 +266,12 @@ const recallWorker = (nodeId: string) => {
 };
 
 // --- CRAFTING ACTIONS ---
-const upgradeTool = (skill: 'woodcutting' | 'mining' | "foraging", part: 'handle' | 'metal' | 'grip' | 'enchantment' | 'critChance' | 'critDamage') => {
-  socket.emit('playerAction', { type: 'upgradeTool', skill, part });
+const upgradeTool = (
+  skill: 'woodcutting' | 'mining' | 'foraging', 
+  part: 'handle' | 'metal' | 'grip' | 'enchantment' | 'critChance' | 'critDamage'
+) => {
+  // Send directly to the 'upgradeTool' channel, dropping the nested 'type' property
+  socket.emit('upgradeTool', { skill, part });
 };
 
 // Helpers for the UI to display costs (Safely defaults to level 1 if undefined)

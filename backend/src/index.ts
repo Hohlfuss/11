@@ -176,7 +176,7 @@ io.on('connection', (socket) => {
     const success = applyToolUpgrade(state, skill, part);
     
     if (success) {
-      socket.emit('gameStateUpdate', state);
+      io.to(state.socketId).emit('gameStateUpdate', state);
     }
   });
 });
