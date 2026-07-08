@@ -211,16 +211,14 @@ setInterval(() => {
       }
       stateChanged = true;
     }
-
+    
     // 4. Send updates ONLY to the player who owns this state
     if (stateChanged) {
-      const socket = io.sockets.sockets.get(state.socketId);
-      if (socket) {
-        socket.emit('gameStateUpdate', state);
-        state.pendingEvents = []; // clear after sending so events don't fire twice
-      }
+      // THE FIX: Use io.to().emit() - it is foolproof for targeting socket IDs
+      io.to(state.socketId).emit('gameStateUpdate', state);
+      
+      state.pendingEvents = []; 
     } else {
-      // Always clear pending events even if state didn't change this tick
       state.pendingEvents = [];
     }
   }
