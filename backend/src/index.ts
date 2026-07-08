@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
         // --- ADD THIS BLOCK ---
         if (type === 'upgradeTool') {
           const { skill, part } = payload;
-          
+
           // Ensure the tools object exists for players created before this update
           if (!state.tools) {
             state.tools = {
@@ -97,9 +97,14 @@ io.on('connection', (socket) => {
             };
           }
 
+          const costMap: Record<string, Record<string, string>> = {
+            woodcutting: { handle: 'Oak Log', metal: 'Copper Ore' },
+            mining: { handle: 'Copper Ore', metal: 'Iron Ore' }
+          };
+
           const currentLevel = state.tools[skill][part];
-          const costAmount = currentLevel * 10; 
-          const costItem = part === 'handle' ? 'Oak Log' : 'Copper Ore';
+          const costAmount = currentLevel * 10;
+          const costItem = costMap[skill]?.[part] ?? 'Oak Log';
 
           if ((state.inventory[costItem] || 0) >= costAmount) {
             state.inventory[costItem] -= costAmount;

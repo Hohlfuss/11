@@ -31,11 +31,17 @@ const auth = reactive({
 const NODES = {
   woodcutting: [
     { id: 'oak', name: 'Oak Tree', time: 2000, xpReward: 15, yields: 'Oak Log', icon: Trees, color: 'text-green-500', bg: 'bg-green-500' },
-    { id: 'pine', name: 'Pine Tree', time: 3500, xpReward: 30, yields: 'Pine Log', icon: Trees, color: 'text-emerald-700', bg: 'bg-emerald-700' }
+    { id: 'pine', name: 'Pine Tree', time: 3500, xpReward: 30, yields: 'Pine Log', icon: Trees, color: 'text-emerald-700', bg: 'bg-emerald-700' },
+    { id: 'maple', name: 'Maple Tree', time: 5500, xpReward: 50, yields: 'Maple Log', icon: Trees, color: 'text-orange-600', bg: 'bg-orange-600' },
+    { id: 'mahogany', name: 'Mahogany Tree', time: 8000, xpReward: 80, yields: 'Mahogany Log', icon: Trees, color: 'text-amber-800', bg: 'bg-amber-800' },
+    { id: 'yew', name: 'Yew Tree', time: 12000, xpReward: 120, yields: 'Yew Log', icon: Trees, color: 'text-green-900', bg: 'bg-green-900' }
   ],
   mining: [
     { id: 'copper', name: 'Copper Vein', time: 3000, xpReward: 20, yields: 'Copper Ore', icon: Pickaxe, color: 'text-orange-500', bg: 'bg-orange-500' },
-    { id: 'iron', name: 'Iron Vein', time: 5000, xpReward: 45, yields: 'Iron Ore', icon: Pickaxe, color: 'text-gray-400', bg: 'bg-gray-400' }
+    { id: 'iron', name: 'Iron Vein', time: 5000, xpReward: 45, yields: 'Iron Ore', icon: Pickaxe, color: 'text-gray-400', bg: 'bg-gray-400' },
+    { id: 'silver', name: 'Silver Vein', time: 7500, xpReward: 75, yields: 'Silver Ore', icon: Pickaxe, color: 'text-slate-300', bg: 'bg-slate-300' },
+    { id: 'gold', name: 'Gold Vein', time: 11000, xpReward: 110, yields: 'Gold Ore', icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
+    { id: 'mithril', name: 'Mithril Vein', time: 16000, xpReward: 160, yields: 'Mithril Ore', icon: Pickaxe, color: 'text-blue-500', bg: 'bg-blue-500' }
   ]
 };
 

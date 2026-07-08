@@ -60,7 +60,7 @@ export async function createPlayer(username: string) {
     xp: 0,
     xp_needed: 100,
     workers_total: 0,
-    inventory: { 'Oak Log': 0, 'Pine Log': 0, 'Copper Ore': 0, 'Iron Ore': 0 }
+    inventory: { 'Oak Log': 0, 'Pine Log': 0, 'Maple Log': 0, 'Mahogany Log': 0, 'Yew Log': 0, 'Copper Ore': 0, 'Iron Ore': 0, 'Silver Ore': 0, 'Gold Ore': 0, 'Mithril Ore': 0 }
   };
   
   const { data, error } = await supabase
