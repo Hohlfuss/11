@@ -1,3 +1,7 @@
+// 1. Create a Union Type for your skills
+export type SkillType = 'woodcutting' | 'mining' | 'foraging';
+
+// 2. Define how the tool object looks
 export interface ToolState {
   handle?: number;
   metal?: number;
@@ -6,6 +10,13 @@ export interface ToolState {
   critChance?: number;
   critDamage?: number;
   bindings?: number;
+}
+
+// 3. Define the main structure
+export interface ToolContainer {
+  woodcutting: ToolState;
+  mining: ToolState;
+  foraging: ToolState;
 }
 
 export interface GameStateLike {

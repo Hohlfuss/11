@@ -559,6 +559,31 @@ const nextWorkerUnlockLevel = () => {
   if (state.workersTotal < 3) return 10;
   return null;
 };
+
+type Skill = "woodcutting" | "mining" | "foraging";
+
+// Helper to calculate how many resources drop per completion
+const getYieldAmount = (skill: Skill) => {
+  if (!state.tools || !state.tools[skill]) return 1;
+  const metalLevel = state.tools[skill].metal || 1;
+  return 1 * metalLevel; 
+};
+
+// Helper to calculate Critical Hit Chance %
+const getCritChance = (skill: Skill) => {
+  if (!state.tools || !state.tools[skill]) return 0;
+  const critLevel = state.tools[skill].critChance || 1;
+  // Example: Level 1 = 0%, Level 2 = 5%, Level 3 = 10%
+  return (critLevel - 1) * 5; 
+};
+
+// Helper to calculate Critical Damage Multiplier
+const getCritMultiplier = (skill: Skill) => {
+  if (!state.tools || !state.tools[skill]) return 1.5;
+  const critDmgLevel = state.tools[skill].critDamage || 1;
+  // Example: Level 1 = 1.5x, Level 2 = 2.0x, Level 3 = 2.5x
+  return 1.5 + ((critDmgLevel - 1) * 0.5); 
+};
 </script>
 
 <style>
@@ -668,7 +693,7 @@ const nextWorkerUnlockLevel = () => {
 
     <div
       v-else
-      class="flex-1 flex flex-col max-w-3xl border border-slate-800 rounded-xl bg-slate-900 shadow-2xl overflow-hidden"
+      class="max-w-7xl mx-auto w-full px-4 py-6 border border-slate-800 rounded-xl bg-slate-900 shadow-2xl overflow-hidden"
     >
       <div
         class="bg-slate-800 p-4 border-b border-slate-700 flex flex-col gap-2 relative"
@@ -811,7 +836,7 @@ const nextWorkerUnlockLevel = () => {
             state.view === 'mining' ||
             state.view === 'foraging'
           "
-          class="flex flex-col h-full"
+          class="max-w-4xl mx-auto w-full px-4 py-6"
         >
           <button
             @click="changeView('main')"
@@ -820,17 +845,33 @@ const nextWorkerUnlockLevel = () => {
             <ArrowLeft :size="18" /> Back to Operations
           </button>
 
-          <div class="grid gap-4">
+          <div class="flex flex-col gap-5">
             <div
               v-for="node in NODES[state.view]"
               :key="node.id"
               :class="[
-                'p-5 rounded-xl border shadow-sm flex flex-col gap-3 transition-all',
+                'bg-slate-900 border border-slate-700 rounded-xl p-5 shadow-lg relative overflow-hidden',
                 state.level >= node.unlockLevel
                   ? 'bg-slate-800 border-slate-700'
                   : 'bg-slate-900/50 border-slate-800 opacity-60',
               ]"
             >
+
+            <div class="flex justify-between items-end mb-1">
+              <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                {{ node.name }}
+              </h3>
+              
+              <div class="text-sm font-mono text-slate-300 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                Owned: <span class="text-white font-bold">{{ state.inventory[node.yields] || 0 }}</span>
+              </div>
+            </div>
+
+            <div class="flex justify-between text-xs text-slate-500 font-medium mb-3 mt-1 px-1">
+              <span>Yield: <span class="text-green-400">+{{ getYieldAmount(state.view) }}</span></span>
+              <span>Crit: <span class="text-yellow-400">{{ getCritChance(state.view) }}%</span></span>
+              <span>Pwr: <span class="text-red-400">{{ getCritMultiplier(state.view) }}x</span></span>
+            </div>
               <!-- LOCKED NODE -->
               <div
                 v-if="state.level < node.unlockLevel"
@@ -886,7 +927,7 @@ const nextWorkerUnlockLevel = () => {
                     @click="startManualTask(node)"
                     :disabled="state.manualAction !== null"
                     :class="[
-                      'flex-1 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all',
+                      'flex-1 py-0.5 px-1 rounded-lg font-medium text-xs flex items-center justify-center gap-1 transition-all',
                       state.manualAction?.id === node.id
                         ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                         : state.manualAction
