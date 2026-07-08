@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, computed, ref, onMounted, onUnmounted } from 'vue';
+import { reactive, computed, onMounted, onUnmounted } from 'vue';
 import { TransitionGroup } from 'vue';
 import { io } from 'socket.io-client';
 import { 
