@@ -45,6 +45,7 @@ io.on('connection', (socket) => {
       
       const { error: createError } = await createPlayer(username, hash);
       if (createError) {
+        console.error('Supabase Registration Error:', createError);
         return socket.emit('registerError', 'Database error during registration.');
       }
       
