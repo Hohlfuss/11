@@ -97,17 +97,14 @@ io.on('connection', (socket) => {
 
   // --- GAME ACTIONS ---
   socket.on('startManualAction', (actionPayload) => {
-    console.log('🚨 2. BACKEND: Received action payload:', actionPayload); // <-- ADD THIS
 
     const username = socket.data?.username;
     if (!username) {
-      console.log('❌ BACKEND FAIL: socket.data.username is missing!'); // <-- ADD THIS
       return; 
     }
 
     const state = activePlayers.get(username);
     if (!state) {
-      console.log(`❌ BACKEND FAIL: Could not find active state for user: ${username}`); // <-- ADD THIS
       return;
     }
 
@@ -116,7 +113,43 @@ io.on('connection', (socket) => {
       progress: 0
     };
     
-    console.log(`✅ 3. BACKEND SUCCESS: Action applied for ${username}`); // <-- ADD THIS
+    socket.emit('gameStateUpdate', state);
+  });
+
+  // --- ASSIGN A WORKER ---
+  socket.on('assignWorker', (nodePayload) => {
+    const username = socket.data?.username;
+    if (!username) return;
+
+    const state = activePlayers.get(username);
+    if (!state) return;
+
+    // 1. Safety Check: Make sure they actually have a free worker to assign!
+    if (state.workerActions.length >= state.workers_total) {
+      return; // Ignore the click if they are maxed out
+    }
+
+    // 2. Add the new task to their worker array, starting at 0 progress
+    state.workerActions.push({
+      ...nodePayload,
+      progress: 0
+    });
+    
+    socket.emit('gameStateUpdate', state);
+  });
+
+
+  // --- RECALL A WORKER ---
+  socket.on('recallWorker', (nodeId) => {
+    const username = socket.data?.username;
+    if (!username) return;
+
+    const state = activePlayers.get(username);
+    if (!state) return;
+
+    // Remove the worker task that matches this specific node ID
+    state.workerActions = state.workerActions.filter((action: any) => action.id !== nodeId);
+    
     socket.emit('gameStateUpdate', state);
   });
   
@@ -211,7 +244,7 @@ setInterval(() => {
       }
       stateChanged = true;
     }
-    
+
     // 4. Send updates ONLY to the player who owns this state
     if (stateChanged) {
       // THE FIX: Use io.to().emit() - it is foolproof for targeting socket IDs

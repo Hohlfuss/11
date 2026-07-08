@@ -159,11 +159,6 @@ onMounted(() => {
   });
 
   socket.on('gameStateUpdate', (newState) => {
-    // 1. Uncomment this console log just to prove it's arriving!
-    console.log('🔄 UI UPDATE:', newState.manualAction?.progress);
-    
-    // 2. Update your reactive Vue state so the progress bars move!
-    // (Assuming your reactive variable is named 'state' and you have an updateLocalState function)
     updateLocalState(newState); 
   });
 });
