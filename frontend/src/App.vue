@@ -13,8 +13,11 @@ import {
   LogIn
 } from 'lucide-vue-next';
 
-// Connect to the backend (Vite proxy will route this to port 3000)
-const socket = io();
+// This will use your Render backend in production, or fallback to relative/local in dev
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://one1-x2mf.onrender.com';
+const socket = io(backendUrl, {
+  transports: ['websocket', 'polling'] // Good practice for Render websockets
+});
 
 // --- AUTHENTICATION STATE ---
 const auth = reactive({
