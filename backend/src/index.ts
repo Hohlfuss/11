@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { getPlayer, createPlayer, savePlayer } from './db.js';
 import { applyToolUpgrade } from './gameLogic.js';
-import bcrypt from "brypt";
+import bcrypt from "bcrypt";
 
 const app = express();
 const httpServer = createServer(app);
