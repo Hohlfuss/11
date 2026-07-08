@@ -172,7 +172,7 @@ setInterval(() => {
         const handleLevel = state.tools?.[skill]?.handle || 1;
         const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
 
-        workerAction.progress += (100 * speedMultiplier);
+        workerAction.progress += (20 * speedMultiplier);
         stateChanged = true;
 
         if (workerAction.progress >= workerAction.time) {
