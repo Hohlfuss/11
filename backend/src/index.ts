@@ -110,6 +110,43 @@ io.on('connection', (socket) => {
       ...actionPayload,
       progress: 0
     };
+
+    // --- ASSIGN A WORKER ---
+  socket.on('assignWorker', (nodePayload) => {
+    const username = socket.data?.username;
+    if (!username) return;
+
+    const state = activePlayers.get(username);
+    if (!state) return;
+
+    // Optional Safety Check: Make sure they have a worker available to assign!
+    if (state.workerActions.length >= state.workers_total) {
+      // You could emit an error here, or just ignore the click
+      return; 
+    }
+
+    // Add the new task to their worker array, starting at 0 progress
+    state.workerActions.push({
+      ...nodePayload,
+      progress: 0
+    });
+    
+    socket.emit('gameStateUpdate', state);
+  });
+
+  // --- RECALL A WORKER ---
+  socket.on('recallWorker', (nodeId) => {
+    const username = socket.data?.username;
+    if (!username) return;
+
+    const state = activePlayers.get(username);
+    if (!state) return;
+
+    // Remove the worker task that matches this specific node ID
+    state.workerActions = state.workerActions.filter((action: any) => action.id !== nodeId);
+    
+    socket.emit('gameStateUpdate', state);
+    });
     
     // (Optional) Force an immediate update so the UI feels responsive
     socket.emit('gameStateUpdate', state);

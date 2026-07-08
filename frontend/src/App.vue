@@ -236,11 +236,11 @@ const startManualTask = (node: any) => {
 };
 
 const assignWorker = (node: any) => {
-  socket.emit('playerAction', { type: 'assignWorker', node });
+  socket.emit('assignWorker', node);
 };
 
 const recallWorker = (nodeId: string) => {
-  socket.emit('playerAction', { type: 'recallWorker', nodeId });
+  socket.emit('recallWorker', nodeId);
 };
 
 // --- CRAFTING ACTIONS ---
