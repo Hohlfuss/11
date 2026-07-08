@@ -10,13 +10,13 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://one1-x2mf.onrender.com/',
         changeOrigin: true,
         secure: false,
       },
       // You must add this block so Vite knows how to route the WebSockets!
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: 'https://one1-x2mf.onrender.com/',
         ws: true,
       }
     }

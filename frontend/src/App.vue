@@ -119,7 +119,7 @@ const recallWorker = () => {
     <!-- LOGIN SCREEN -->
     <div v-if="!auth.isAuthenticated" class="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">Management MMO</h1>
+        <h1 class="text-3xl font-bold text-white mb-2">Incremental Game</h1>
         <p class="text-slate-400">Enter a username to start or resume your game.</p>
       </div>
       
