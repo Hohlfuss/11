@@ -232,6 +232,7 @@ const changeView = (newView: 'main' | 'woodcutting' | 'mining' | "crafting" | "f
 };
 
 const startManualTask = (node: any) => {
+  console.log('🚨 1. FRONTEND: Button clicked!', node); // <-- ADD THIS
   socket.emit('startManualAction', node);
 };
 
