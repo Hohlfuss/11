@@ -154,7 +154,7 @@ setInterval(() => {
     if (state.manualAction) {
       const skill = state.manualAction.yields.includes("Log") ? "woodcutting" : "mining";
       const handleLevel = state.tools?.[skill]?.handle || 1;
-      const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
+      const speedMultiplier = Math.pow(1.25, handleLevel - 1);
 
       state.manualAction.progress += (100 * speedMultiplier);
       stateChanged = true;
@@ -181,7 +181,7 @@ setInterval(() => {
       // Infer skill based on the yield name
       const skill = state.workerAction.yields.includes('Log') ? 'woodcutting' : 'mining';
       const handleLevel = state.tools?.[skill]?.handle || 1;
-      const speedMultiplier = 1 + ((handleLevel - 1) * 0.25); // +25% speed per level
+      const speedMultiplier = Math.pow(1.25, handleLevel - 1); // +25% compounding speed per level
 
       state.workerAction.progress += (100 * speedMultiplier);
       stateChanged = true;

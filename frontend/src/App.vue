@@ -168,7 +168,7 @@ const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'm
 
 const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
   const handleLevel = state.tools?.[skill]?.handle || 1;
-  const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
+  const speedMultiplier = Math.pow(1.25, handleLevel - 1);
   return (baseTime / speedMultiplier / 1000).toFixed(1);
 };
 </script>

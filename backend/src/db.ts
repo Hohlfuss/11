@@ -45,7 +45,8 @@ export async function savePlayer(username: string, state: any) {
       xp: state.xp, 
       xp_needed: state.xp_needed,
       inventory: state.inventory,
-      workers_total: state.workers_total
+      workers_total: state.workers_total,
+      tools: state.tools
     })
     .eq('username', username);
   
