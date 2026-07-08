@@ -95,23 +95,28 @@ io.on('connection', (socket) => {
           // Ensure the tools object exists for players created before this update
           if (!state.tools) {
             state.tools = {
-              woodcutting: { handle: 1, metal: 1 },
-              mining: { handle: 1, metal: 1 }
+              woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1 },
+              mining: { handle: 1, metal: 1, grip: 1, enchantment: 1 }
             };
+          } else if (!state.tools.woodcutting.grip) {
+            state.tools.woodcutting.grip = 1;
+            state.tools.woodcutting.enchantment = 1;
+            state.tools.mining.grip = 1;
+            state.tools.mining.enchantment = 1;
           }
 
           const costMap: Record<string, Record<string, string>> = {
-            woodcutting: { handle: 'Oak Log', metal: 'Copper Ore' },
-            mining: { handle: 'Copper Ore', metal: 'Iron Ore' }
+            woodcutting: { handle: 'Oak Log', metal: 'Copper Ore', grip: 'Maple Log', enchantment: 'Mahogany Log' },
+            mining: { handle: 'Copper Ore', metal: 'Iron Ore', grip: 'Silver Ore', enchantment: 'Gold Ore' }
           };
 
-          const currentLevel = state.tools[skill][part];
-          const costAmount = currentLevel * 10;
+          const currentLevel = state.tools[skill][part] || 1;
+          const costAmount = Math.floor(15 * Math.pow(1.8, currentLevel - 1));
           const costItem = costMap[skill]?.[part] ?? 'Oak Log';
 
           if ((state.inventory[costItem] || 0) >= costAmount) {
             state.inventory[costItem] -= costAmount;
-            state.tools[skill][part] += 1;
+            state.tools[skill][part] = currentLevel + 1;
           }
         }
         // ----------------------
@@ -156,9 +161,17 @@ setInterval(() => {
 
       if (state.manualAction.progress >= state.manualAction.time) {
         const metalLevel = state.tools?.[skill]?.metal || 1;
+        const gripLevel = state.tools?.[skill]?.grip || 1;
+        const enchantmentLevel = state.tools?.[skill]?.enchantment || 1;
 
-        xpGained += state.manualAction.xpReward;
-        resGained[state.manualAction.yields] = (resGained[state.manualAction.yields] || 0) + (1 * metalLevel);
+        let yieldAmount = 1 * metalLevel;
+        if (Math.random() < (gripLevel - 1) * 0.05) yieldAmount *= 2;
+
+        let xpAmount = state.manualAction.xpReward;
+        if (Math.random() < (enchantmentLevel - 1) * 0.05) xpAmount *= 2;
+
+        xpGained += xpAmount;
+        resGained[state.manualAction.yields] = (resGained[state.manualAction.yields] || 0) + yieldAmount;
         state.manualAction = null;
       }
     }
@@ -175,9 +188,17 @@ setInterval(() => {
       
       if (state.workerAction.progress >= state.workerAction.time) {
         const metalLevel = state.tools?.[skill]?.metal || 1;
+        const gripLevel = state.tools?.[skill]?.grip || 1;
+        const enchantmentLevel = state.tools?.[skill]?.enchantment || 1;
 
-        xpGained += state.workerAction.xpReward;
-        resGained[state.workerAction.yields] = (resGained[state.workerAction.yields] || 0) + (1 * metalLevel);
+        let yieldAmount = 1 * metalLevel;
+        if (Math.random() < (gripLevel - 1) * 0.05) yieldAmount *= 2;
+
+        let xpAmount = state.workerAction.xpReward;
+        if (Math.random() < (enchantmentLevel - 1) * 0.05) xpAmount *= 2;
+
+        xpGained += xpAmount;
+        resGained[state.workerAction.yields] = (resGained[state.workerAction.yields] || 0) + yieldAmount;
         state.workerAction.progress = 0;
       }
     }

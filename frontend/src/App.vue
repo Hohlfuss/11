@@ -30,18 +30,18 @@ const auth = reactive({
 // --- GAME DATA CONFIGURATION ---
 const NODES = {
   woodcutting: [
-    { id: 'oak', name: 'Oak Tree', time: 2000, xpReward: 15, yields: 'Oak Log', icon: Trees, color: 'text-green-500', bg: 'bg-green-500' },
-    { id: 'pine', name: 'Pine Tree', time: 3500, xpReward: 30, yields: 'Pine Log', icon: Trees, color: 'text-emerald-700', bg: 'bg-emerald-700' },
-    { id: 'maple', name: 'Maple Tree', time: 5500, xpReward: 50, yields: 'Maple Log', icon: Trees, color: 'text-orange-600', bg: 'bg-orange-600' },
-    { id: 'mahogany', name: 'Mahogany Tree', time: 8000, xpReward: 80, yields: 'Mahogany Log', icon: Trees, color: 'text-amber-800', bg: 'bg-amber-800' },
-    { id: 'yew', name: 'Yew Tree', time: 12000, xpReward: 120, yields: 'Yew Log', icon: Trees, color: 'text-green-900', bg: 'bg-green-900' }
+    { id: 'oak', name: 'Oak Tree', time: 5000, xpReward: 15, yields: 'Oak Log', icon: Trees, color: 'text-green-500', bg: 'bg-green-500' },
+    { id: 'pine', name: 'Pine Tree', time: 8750, xpReward: 30, yields: 'Pine Log', icon: Trees, color: 'text-emerald-700', bg: 'bg-emerald-700' },
+    { id: 'maple', name: 'Maple Tree', time: 13750, xpReward: 50, yields: 'Maple Log', icon: Trees, color: 'text-orange-600', bg: 'bg-orange-600' },
+    { id: 'mahogany', name: 'Mahogany Tree', time: 20000, xpReward: 80, yields: 'Mahogany Log', icon: Trees, color: 'text-amber-800', bg: 'bg-amber-800' },
+    { id: 'yew', name: 'Yew Tree', time: 30000, xpReward: 120, yields: 'Yew Log', icon: Trees, color: 'text-green-900', bg: 'bg-green-900' }
   ],
   mining: [
-    { id: 'copper', name: 'Copper Vein', time: 3000, xpReward: 20, yields: 'Copper Ore', icon: Pickaxe, color: 'text-orange-500', bg: 'bg-orange-500' },
-    { id: 'iron', name: 'Iron Vein', time: 5000, xpReward: 45, yields: 'Iron Ore', icon: Pickaxe, color: 'text-gray-400', bg: 'bg-gray-400' },
-    { id: 'silver', name: 'Silver Vein', time: 7500, xpReward: 75, yields: 'Silver Ore', icon: Pickaxe, color: 'text-slate-300', bg: 'bg-slate-300' },
-    { id: 'gold', name: 'Gold Vein', time: 11000, xpReward: 110, yields: 'Gold Ore', icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
-    { id: 'mithril', name: 'Mithril Vein', time: 16000, xpReward: 160, yields: 'Mithril Ore', icon: Pickaxe, color: 'text-blue-500', bg: 'bg-blue-500' }
+    { id: 'copper', name: 'Copper Vein', time: 7500, xpReward: 20, yields: 'Copper Ore', icon: Pickaxe, color: 'text-orange-500', bg: 'bg-orange-500' },
+    { id: 'iron', name: 'Iron Vein', time: 12500, xpReward: 45, yields: 'Iron Ore', icon: Pickaxe, color: 'text-gray-400', bg: 'bg-gray-400' },
+    { id: 'silver', name: 'Silver Vein', time: 18750, xpReward: 75, yields: 'Silver Ore', icon: Pickaxe, color: 'text-slate-300', bg: 'bg-slate-300' },
+    { id: 'gold', name: 'Gold Vein', time: 27500, xpReward: 110, yields: 'Gold Ore', icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
+    { id: 'mithril', name: 'Mithril Vein', time: 40000, xpReward: 160, yields: 'Mithril Ore', icon: Pickaxe, color: 'text-blue-500', bg: 'bg-blue-500' }
   ]
 };
 
@@ -61,8 +61,8 @@ const state = reactive({
   manualAction: null as any,
   workerAction: null as any,
   tools: {
-    woodcutting: { handle: 1, metal: 1 },
-    mining: { handle: 1, metal: 1 }
+    woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1 },
+    mining: { handle: 1, metal: 1, grip: 1, enchantment: 1 }
   }
 });
 
@@ -144,17 +144,28 @@ const recallWorker = () => {
 };
 
 // --- CRAFTING ACTIONS ---
-const upgradeTool = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal') => {
+const upgradeTool = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal' | 'grip' | 'enchantment') => {
   socket.emit('playerAction', { type: 'upgradeTool', skill, part });
 };
 
 // Helpers for the UI to display costs (Safely defaults to level 1 if undefined)
-const getUpgradeCost = (level?: number) => (level || 1) * 10;
-const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal') => {
+const getUpgradeCost = (level?: number) => Math.floor(15 * Math.pow(1.8, (level || 1) - 1));
+
+const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal' | 'grip' | 'enchantment') => {
   if (skill === 'mining') {
+    if (part === 'grip') return 'Silver Ore';
+    if (part === 'enchantment') return 'Gold Ore';
     return part === 'handle' ? 'Copper Ore' : 'Iron Ore';
   }
+  if (part === 'grip') return 'Maple Log';
+  if (part === 'enchantment') return 'Mahogany Log';
   return part === 'handle' ? 'Oak Log' : 'Copper Ore';
+};
+
+const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
+  const handleLevel = state.tools?.[skill]?.handle || 1;
+  const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
+  return (baseTime / speedMultiplier / 1000).toFixed(1);
 };
 </script>
 
@@ -281,7 +292,7 @@ const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'm
                   </div>
                 </div>
                 <div class="text-sm font-mono text-slate-500">
-                  {{ (node.time / 1000).toFixed(1) }}s
+                  {{ getDynamicTime(state.view, node.time) }}s
                 </div>
               </div>
 
@@ -384,6 +395,40 @@ const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'm
                     Upgrade
                   </button>
                 </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Firm Grip (Lvl {{ state.tools?.woodcutting?.grip || 1 }})</h4>
+                    <p class="text-xs text-slate-400">5% chance per level to double yield</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('woodcutting', 'grip')] || 0) >= getUpgradeCost(state.tools?.woodcutting?.grip) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.woodcutting?.grip) }} {{ getUpgradeResource('woodcutting', 'grip') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('woodcutting', 'grip')"
+                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'grip')] || 0) < getUpgradeCost(state.tools?.woodcutting?.grip)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Nature Enchantment (Lvl {{ state.tools?.woodcutting?.enchantment || 1 }})</h4>
+                    <p class="text-xs text-slate-400">5% chance per level to double XP</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('woodcutting', 'enchantment')] || 0) >= getUpgradeCost(state.tools?.woodcutting?.enchantment) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.woodcutting?.enchantment) }} {{ getUpgradeResource('woodcutting', 'enchantment') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('woodcutting', 'enchantment')"
+                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'enchantment')] || 0) < getUpgradeCost(state.tools?.woodcutting?.enchantment)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -421,6 +466,40 @@ const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: 'handle' | 'm
                   <button
                     @click="upgradeTool('mining', 'metal')"
                     :disabled="(state.inventory[getUpgradeResource('mining', 'metal')] || 0) < getUpgradeCost(state.tools?.mining?.metal)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Steady Grip (Lvl {{ state.tools?.mining?.grip || 1 }})</h4>
+                    <p class="text-xs text-slate-400">5% chance per level to double yield</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('mining', 'grip')] || 0) >= getUpgradeCost(state.tools?.mining?.grip) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.mining?.grip) }} {{ getUpgradeResource('mining', 'grip') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('mining', 'grip')"
+                    :disabled="(state.inventory[getUpgradeResource('mining', 'grip')] || 0) < getUpgradeCost(state.tools?.mining?.grip)"
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Earth Enchantment (Lvl {{ state.tools?.mining?.enchantment || 1 }})</h4>
+                    <p class="text-xs text-slate-400">5% chance per level to double XP</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('mining', 'enchantment')] || 0) >= getUpgradeCost(state.tools?.mining?.enchantment) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.mining?.enchantment) }} {{ getUpgradeResource('mining', 'enchantment') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="upgradeTool('mining', 'enchantment')"
+                    :disabled="(state.inventory[getUpgradeResource('mining', 'enchantment')] || 0) < getUpgradeCost(state.tools?.mining?.enchantment)"
                     class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
                   >
                     Upgrade
