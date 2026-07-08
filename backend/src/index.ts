@@ -79,14 +79,12 @@ io.on('connection', (socket) => {
       const defaultInventory = { 'Oak Log': 0, /* ... fill defaults ... */ };
       data.inventory = { ...defaultInventory, ...(data.inventory || {}) };
 
-      // ---> ADD THIS BLOCK: Ensure 'tools' exists so the frontend doesn't crash
-      const defaultTools = {
-        woodcutting: { handle: 1, metal: 1, grip: 1 },
-        mining: { handle: 1, metal: 1, grip: 1 },
-        foraging: { handle: 1, bindings: 1, grip: 1 }
+      const savedTools = data.tools || {};
+      data.tools = {
+        woodcutting: { handle: 1, metal: 1, grip: 1, ...savedTools.woodcutting },
+        mining: { handle: 1, metal: 1, grip: 1, ...savedTools.mining },
+        foraging: { handle: 1, bindings: 1, grip: 1, ...savedTools.foraging }
       };
-      data.tools = { ...defaultTools, ...(data.tools || {}) };
-      // <---
 
       activePlayers.set(username, { ...data, socketId: socket.id, workerActions: [], pendingEvents: [] });
       socket.emit('loginSuccess', activePlayers.get(username));
