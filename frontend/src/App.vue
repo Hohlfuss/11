@@ -46,9 +46,12 @@ const NODES = {
     { id: 'gold',    name: 'Gold Vein',    time: 27500, xpReward: 110, yields: 'Gold Ore',    unlockLevel: 7,  icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
     { id: 'mithril', name: 'Mithril Vein', time: 40000, xpReward: 160, yields: 'Mithril Ore', unlockLevel: 10, icon: Pickaxe, color: 'text-blue-500',   bg: 'bg-blue-500' }
   ],
-  foraging: [ // <-- JUST ADD THIS ARRAY
+  foraging: [
     { id: 'cotton', name: 'Cotton Plant', time: 4000, xpReward: 12, yields: 'Cotton Fiber', unlockLevel: 1, icon: Leaf, color: 'text-teal-400', bg: 'bg-teal-400' },
-    { id: 'hemp', name: 'Hemp Plant', time: 7000, xpReward: 25, yields: 'Hemp Fiber', unlockLevel: 4, icon: Leaf, color: 'text-lime-500', bg: 'bg-lime-500' }
+    { id: 'hemp', name: 'Hemp Plant', time: 7000, xpReward: 25, yields: 'Hemp Fiber', unlockLevel: 4, icon: Leaf, color: 'text-lime-500', bg: 'bg-lime-500' },
+    { id: 'flax', name: 'Flax Flower', time: 12000, xpReward: 50, yields: 'Flax Fiber', unlockLevel: 8, icon: Leaf, color: 'text-blue-400', bg: 'bg-blue-400' },
+    { id: 'silk', name: 'Silk Moth Nest', time: 18000, xpReward: 90, yields: 'Silk Thread', unlockLevel: 15, icon: Leaf, color: 'text-indigo-400', bg: 'bg-indigo-400' },
+    { id: 'magic_vine', name: 'Magic Vine', time: 30000, xpReward: 200, yields: 'Magic Vine', unlockLevel: 25, icon: Leaf, color: 'text-purple-500', bg: 'bg-purple-500' },
   ]
 };
 
@@ -65,7 +68,10 @@ const ALL_MATERIALS = [
   { name: 'Gold Ore',     unlockLevel: 7  },
   { name: 'Mithril Ore',  unlockLevel: 10 },
   { name: 'Cotton Fiber', unlockLevel: 1 },
-  { name: 'Hemp Fiber', unlockLevel: 4 }
+  { name: 'Hemp Fiber', unlockLevel: 4 },
+  { name: 'Flax Fiber', unlockLevel: 8 },
+  { name: 'Silk Thread', unlockLevel: 15 },
+  { name: 'Magic Vine', unlockLevel: 25 }
 ];
 
 // --- CENTRAL GAME STATE ---
@@ -198,7 +204,7 @@ const handleLogin = () => {
   socket.emit('playerLogin', auth.usernameInput.trim());
 };
 
-const changeView = (newView: 'main' | 'woodcutting' | 'mining' | "crafting") => {
+const changeView = (newView: 'main' | 'woodcutting' | 'mining' | "crafting" | "foraging") => {
   state.view = newView;
 };
 
@@ -215,14 +221,14 @@ const recallWorker = (nodeId: string) => {
 };
 
 // --- CRAFTING ACTIONS ---
-const upgradeTool = (skill: 'woodcutting' | 'mining', part: 'handle' | 'metal' | 'grip' | 'enchantment' | 'critChance' | 'critDamage') => {
+const upgradeTool = (skill: 'woodcutting' | 'mining' | "foraging", part: 'handle' | 'metal' | 'grip' | 'enchantment' | 'critChance' | 'critDamage') => {
   socket.emit('playerAction', { type: 'upgradeTool', skill, part });
 };
 
 // Helpers for the UI to display costs (Safely defaults to level 1 if undefined)
 const getUpgradeCost = (level?: number) => Math.floor(15 * Math.pow(1.8, (level || 1) - 1));
 
-const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: string) => {
+const getUpgradeResource = (skill: 'woodcutting' | 'mining' | "foraging", part: string) => {
   if (skill === 'mining') {
     if (part === 'grip')        return 'Silver Ore';
     if (part === 'enchantment') return 'Gold Ore';
@@ -241,7 +247,7 @@ const getUpgradeResource = (skill: 'woodcutting' | 'mining', part: string) => {
 const workersAvailable = computed(() => state.workersTotal - state.workerActions.length);
 const workersOnNode    = (nodeId: string) => state.workerActions.filter((w: any) => w.id === nodeId);
 
-const getDynamicTime = (skill: 'woodcutting' | 'mining', baseTime: number) => {
+const getDynamicTime = (skill: 'woodcutting' | 'mining' | "foraging", baseTime: number) => {
   const handleLevel = state.tools?.[skill]?.handle || 1;
   const speedMultiplier = Math.pow(1.25, handleLevel - 1);
   return (baseTime / speedMultiplier / 1000).toFixed(1);
@@ -371,6 +377,20 @@ const nextWorkerUnlockLevel = () => {
             <ChevronRight class="text-slate-500 group-hover:text-white transition-colors" />
           </button>
 
+          <button 
+            @click="changeView('foraging')"
+            class="group relative flex items-center p-6 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 hover:border-teal-500/50 transition-all text-left mt-4"
+          >
+            <div class="bg-teal-900/30 p-4 rounded-lg text-teal-400 group-hover:scale-110 transition-transform">
+              <Leaf :size="32" />
+            </div>
+            <div class="ml-6 flex-1">
+              <h3 class="text-xl font-bold text-white">Foraging</h3>
+              <p class="text-slate-400 text-sm">Gather wild fibers, silks, and vines.</p>
+            </div>
+            <ChevronRight class="text-slate-500 group-hover:text-white transition-colors" />
+          </button>
+
           <button @click="changeView('crafting')" class="group relative flex items-center p-6 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-all text-left mt-4">
             <div class="bg-blue-900/30 p-4 rounded-lg text-blue-500 group-hover:scale-110 transition-transform">
               <Wrench :size="32" />
@@ -383,7 +403,7 @@ const nextWorkerUnlockLevel = () => {
           </button>
         </div>
 
-        <div v-if="state.view === 'woodcutting' || state.view === 'mining'" class="flex flex-col h-full">
+        <div v-if="state.view === 'woodcutting' || state.view === 'mining' || state.view === 'foraging'" class="flex flex-col h-full">
           <button
             @click="changeView('main')"
             class="self-start flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
@@ -497,12 +517,15 @@ const nextWorkerUnlockLevel = () => {
           </div>
         </div>
 
+        <!-- CRAFTING VIEW -->
         <div v-if="state.view === 'crafting'" class="flex flex-col h-full">
           <button @click="changeView('main')" class="self-start flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
             <ArrowLeft :size="18" /> Back to Operations
           </button>
 
           <div class="grid gap-6">
+            
+            <!-- HATCHET UPGRADES -->
             <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
               <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
                 <Axe class="text-green-500" :size="20" /> Hatchet Upgrades
@@ -517,13 +540,7 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.woodcutting?.handle) }} {{ getUpgradeResource('woodcutting', 'handle') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('woodcutting', 'handle')"
-                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'handle')] || 0) < getUpgradeCost(state.tools?.woodcutting?.handle)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('woodcutting', 'handle')" :disabled="(state.inventory[getUpgradeResource('woodcutting', 'handle')] || 0) < getUpgradeCost(state.tools?.woodcutting?.handle)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
@@ -534,13 +551,7 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.woodcutting?.metal) }} {{ getUpgradeResource('woodcutting', 'metal') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('woodcutting', 'metal')"
-                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'metal')] || 0) < getUpgradeCost(state.tools?.woodcutting?.metal)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('woodcutting', 'metal')" :disabled="(state.inventory[getUpgradeResource('woodcutting', 'metal')] || 0) < getUpgradeCost(state.tools?.woodcutting?.metal)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
@@ -551,13 +562,7 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.woodcutting?.grip) }} {{ getUpgradeResource('woodcutting', 'grip') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('woodcutting', 'grip')"
-                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'grip')] || 0) < getUpgradeCost(state.tools?.woodcutting?.grip)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('woodcutting', 'grip')" :disabled="(state.inventory[getUpgradeResource('woodcutting', 'grip')] || 0) < getUpgradeCost(state.tools?.woodcutting?.grip)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
@@ -568,16 +573,9 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.woodcutting?.enchantment) }} {{ getUpgradeResource('woodcutting', 'enchantment') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('woodcutting', 'enchantment')"
-                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'enchantment')] || 0) < getUpgradeCost(state.tools?.woodcutting?.enchantment)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('woodcutting', 'enchantment')" :disabled="(state.inventory[getUpgradeResource('woodcutting', 'enchantment')] || 0) < getUpgradeCost(state.tools?.woodcutting?.enchantment)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
-                <!-- Crit Chance -->
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
                   <div>
                     <h4 class="font-bold text-yellow-300/80">⚡ Lucky Strike Chance (Lvl {{ state.tools?.woodcutting?.critChance || 1 }})</h4>
@@ -586,16 +584,9 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.woodcutting?.critChance) }} {{ getUpgradeResource('woodcutting', 'critChance') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('woodcutting', 'critChance')"
-                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'critChance')] || 0) < getUpgradeCost(state.tools?.woodcutting?.critChance)"
-                    class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('woodcutting', 'critChance')" :disabled="(state.inventory[getUpgradeResource('woodcutting', 'critChance')] || 0) < getUpgradeCost(state.tools?.woodcutting?.critChance)" class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
-                <!-- Crit Damage -->
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
                   <div>
                     <h4 class="font-bold text-orange-300/80">🔥 Lucky Strike Power (Lvl {{ state.tools?.woodcutting?.critDamage || 1 }})</h4>
@@ -604,17 +595,12 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.woodcutting?.critDamage) }} {{ getUpgradeResource('woodcutting', 'critDamage') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('woodcutting', 'critDamage')"
-                    :disabled="(state.inventory[getUpgradeResource('woodcutting', 'critDamage')] || 0) < getUpgradeCost(state.tools?.woodcutting?.critDamage)"
-                    class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('woodcutting', 'critDamage')" :disabled="(state.inventory[getUpgradeResource('woodcutting', 'critDamage')] || 0) < getUpgradeCost(state.tools?.woodcutting?.critDamage)" class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
               </div>
             </div>
 
+            <!-- PICKAXE UPGRADES -->
             <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
               <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
                 <Pickaxe class="text-orange-500" :size="20" /> Pickaxe Upgrades
@@ -629,13 +615,7 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.mining?.handle) }} {{ getUpgradeResource('mining', 'handle') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('mining', 'handle')"
-                    :disabled="(state.inventory[getUpgradeResource('mining', 'handle')] || 0) < getUpgradeCost(state.tools?.mining?.handle)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('mining', 'handle')" :disabled="(state.inventory[getUpgradeResource('mining', 'handle')] || 0) < getUpgradeCost(state.tools?.mining?.handle)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
@@ -646,13 +626,7 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.mining?.metal) }} {{ getUpgradeResource('mining', 'metal') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('mining', 'metal')"
-                    :disabled="(state.inventory[getUpgradeResource('mining', 'metal')] || 0) < getUpgradeCost(state.tools?.mining?.metal)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('mining', 'metal')" :disabled="(state.inventory[getUpgradeResource('mining', 'metal')] || 0) < getUpgradeCost(state.tools?.mining?.metal)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
@@ -663,13 +637,7 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.mining?.grip) }} {{ getUpgradeResource('mining', 'grip') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('mining', 'grip')"
-                    :disabled="(state.inventory[getUpgradeResource('mining', 'grip')] || 0) < getUpgradeCost(state.tools?.mining?.grip)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('mining', 'grip')" :disabled="(state.inventory[getUpgradeResource('mining', 'grip')] || 0) < getUpgradeCost(state.tools?.mining?.grip)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
@@ -680,16 +648,9 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.mining?.enchantment) }} {{ getUpgradeResource('mining', 'enchantment') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('mining', 'enchantment')"
-                    :disabled="(state.inventory[getUpgradeResource('mining', 'enchantment')] || 0) < getUpgradeCost(state.tools?.mining?.enchantment)"
-                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('mining', 'enchantment')" :disabled="(state.inventory[getUpgradeResource('mining', 'enchantment')] || 0) < getUpgradeCost(state.tools?.mining?.enchantment)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
-                <!-- Crit Chance -->
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
                   <div>
                     <h4 class="font-bold text-yellow-300/80">⚡ Prospector's Eye (Lvl {{ state.tools?.mining?.critChance || 1 }})</h4>
@@ -698,16 +659,9 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.mining?.critChance) }} {{ getUpgradeResource('mining', 'critChance') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('mining', 'critChance')"
-                    :disabled="(state.inventory[getUpgradeResource('mining', 'critChance')] || 0) < getUpgradeCost(state.tools?.mining?.critChance)"
-                    class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('mining', 'critChance')" :disabled="(state.inventory[getUpgradeResource('mining', 'critChance')] || 0) < getUpgradeCost(state.tools?.mining?.critChance)" class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
 
-                <!-- Crit Damage -->
                 <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
                   <div>
                     <h4 class="font-bold text-orange-300/80">🔥 Deep Strike Power (Lvl {{ state.tools?.mining?.critDamage || 1 }})</h4>
@@ -716,16 +670,86 @@ const nextWorkerUnlockLevel = () => {
                       Cost: {{ getUpgradeCost(state.tools?.mining?.critDamage) }} {{ getUpgradeResource('mining', 'critDamage') }}
                     </p>
                   </div>
-                  <button
-                    @click="upgradeTool('mining', 'critDamage')"
-                    :disabled="(state.inventory[getUpgradeResource('mining', 'critDamage')] || 0) < getUpgradeCost(state.tools?.mining?.critDamage)"
-                    class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors"
-                  >
-                    Upgrade
-                  </button>
+                  <button @click="upgradeTool('mining', 'critDamage')" :disabled="(state.inventory[getUpgradeResource('mining', 'critDamage')] || 0) < getUpgradeCost(state.tools?.mining?.critDamage)" class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
                 </div>
               </div>
             </div>
+
+            <!-- FORAGING SICKLE UPGRADES -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
+              <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
+                <Leaf class="text-teal-500" :size="20" /> Sickle Upgrades
+              </h3>
+
+              <div class="flex flex-col gap-4">
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Lightweight Handle (Lvl {{ state.tools?.foraging?.handle || 1 }})</h4>
+                    <p class="text-xs text-slate-400">Increases gathering speed by 25%</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('foraging', 'handle')] || 0) >= getUpgradeCost(state.tools?.foraging?.handle) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.foraging?.handle) }} {{ getUpgradeResource('foraging', 'handle') }}
+                    </p>
+                  </div>
+                  <button @click="upgradeTool('foraging', 'handle')" :disabled="(state.inventory[getUpgradeResource('foraging', 'handle')] || 0) < getUpgradeCost(state.tools?.foraging?.handle)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Curved Blade (Lvl {{ state.tools?.foraging?.metal || 1 }})</h4>
+                    <p class="text-xs text-slate-400">Increases fiber yield by +1</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('foraging', 'metal')] || 0) >= getUpgradeCost(state.tools?.foraging?.metal) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.foraging?.metal) }} {{ getUpgradeResource('foraging', 'metal') }}
+                    </p>
+                  </div>
+                  <button @click="upgradeTool('foraging', 'metal')" :disabled="(state.inventory[getUpgradeResource('foraging', 'metal')] || 0) < getUpgradeCost(state.tools?.foraging?.metal)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Comfort Grip (Lvl {{ state.tools?.foraging?.grip || 1 }})</h4>
+                    <p class="text-xs text-slate-400">5% chance per level to double yield</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('foraging', 'grip')] || 0) >= getUpgradeCost(state.tools?.foraging?.grip) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.foraging?.grip) }} {{ getUpgradeResource('foraging', 'grip') }}
+                    </p>
+                  </div>
+                  <button @click="upgradeTool('foraging', 'grip')" :disabled="(state.inventory[getUpgradeResource('foraging', 'grip')] || 0) < getUpgradeCost(state.tools?.foraging?.grip)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-slate-200">Growth Enchantment (Lvl {{ state.tools?.foraging?.enchantment || 1 }})</h4>
+                    <p class="text-xs text-slate-400">5% chance per level to double XP</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('foraging', 'enchantment')] || 0) >= getUpgradeCost(state.tools?.foraging?.enchantment) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.foraging?.enchantment) }} {{ getUpgradeResource('foraging', 'enchantment') }}
+                    </p>
+                  </div>
+                  <button @click="upgradeTool('foraging', 'enchantment')" :disabled="(state.inventory[getUpgradeResource('foraging', 'enchantment')] || 0) < getUpgradeCost(state.tools?.foraging?.enchantment)" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-yellow-300/80">⚡ Keen Edge (Lvl {{ state.tools?.foraging?.critChance || 1 }})</h4>
+                    <p class="text-xs text-slate-400">+5% crit chance per level — crits multiply yield</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('foraging', 'critChance')] || 0) >= getUpgradeCost(state.tools?.foraging?.critChance) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.foraging?.critChance) }} {{ getUpgradeResource('foraging', 'critChance') }}
+                    </p>
+                  </div>
+                  <button @click="upgradeTool('foraging', 'critChance')" :disabled="(state.inventory[getUpgradeResource('foraging', 'critChance')] || 0) < getUpgradeCost(state.tools?.foraging?.critChance)" class="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div>
+                    <h4 class="font-bold text-orange-300/80">🔥 Master Harvester (Lvl {{ state.tools?.foraging?.critDamage || 1 }})</h4>
+                    <p class="text-xs text-slate-400">Crit yield ×{{ (state.tools?.foraging?.critDamage || 1) + 1 }} — grows with each level</p>
+                    <p class="text-xs mt-1" :class="(state.inventory[getUpgradeResource('foraging', 'critDamage')] || 0) >= getUpgradeCost(state.tools?.foraging?.critDamage) ? 'text-green-400' : 'text-red-400'">
+                      Cost: {{ getUpgradeCost(state.tools?.foraging?.critDamage) }} {{ getUpgradeResource('foraging', 'critDamage') }}
+                    </p>
+                  </div>
+                  <button @click="upgradeTool('foraging', 'critDamage')" :disabled="(state.inventory[getUpgradeResource('foraging', 'critDamage')] || 0) < getUpgradeCost(state.tools?.foraging?.critDamage)" class="bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-1.5 px-4 rounded font-medium transition-colors">Upgrade</button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -738,7 +762,7 @@ const nextWorkerUnlockLevel = () => {
             <User :size="18" /> Workers: {{ state.workersTotal }} / 3
           </h3>
           <p class="text-sm text-amber-200/70 leading-relaxed">
-            Workers run at 10% speed — stay active for full efficiency!
+            Workers run at 20% speed — stay active for full efficiency!
           </p>
           <p v-if="nextWorkerUnlockLevel()" class="text-xs text-amber-300/50 mt-2">
             Next worker unlocks at level {{ nextWorkerUnlockLevel() }}
