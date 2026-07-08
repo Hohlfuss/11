@@ -232,7 +232,7 @@ const changeView = (newView: 'main' | 'woodcutting' | 'mining' | "crafting" | "f
 };
 
 const startManualTask = (node: any) => {
-  socket.emit('playerAction', { type: 'startManual', node });
+  socket.emit('startManualAction', node);
 };
 
 const assignWorker = (node: any) => {
