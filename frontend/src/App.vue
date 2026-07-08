@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Gem,
   LogIn,
-  Wrench
+  Wrench,
+  Leaf
 } from 'lucide-vue-next';
 
 // This will use your Render backend in production, or fallback to relative/local in dev
@@ -44,6 +45,10 @@ const NODES = {
     { id: 'silver',  name: 'Silver Vein',  time: 18750, xpReward: 75,  yields: 'Silver Ore',  unlockLevel: 5,  icon: Pickaxe, color: 'text-slate-300',  bg: 'bg-slate-300' },
     { id: 'gold',    name: 'Gold Vein',    time: 27500, xpReward: 110, yields: 'Gold Ore',    unlockLevel: 7,  icon: Pickaxe, color: 'text-yellow-400', bg: 'bg-yellow-400' },
     { id: 'mithril', name: 'Mithril Vein', time: 40000, xpReward: 160, yields: 'Mithril Ore', unlockLevel: 10, icon: Pickaxe, color: 'text-blue-500',   bg: 'bg-blue-500' }
+  ],
+  foraging: [ // <-- JUST ADD THIS ARRAY
+    { id: 'cotton', name: 'Cotton Plant', time: 4000, xpReward: 12, yields: 'Cotton Fiber', unlockLevel: 1, icon: Leaf, color: 'text-teal-400', bg: 'bg-teal-400' },
+    { id: 'hemp', name: 'Hemp Plant', time: 7000, xpReward: 25, yields: 'Hemp Fiber', unlockLevel: 4, icon: Leaf, color: 'text-lime-500', bg: 'bg-lime-500' }
   ]
 };
 
@@ -59,11 +64,13 @@ const ALL_MATERIALS = [
   { name: 'Silver Ore',   unlockLevel: 5  },
   { name: 'Gold Ore',     unlockLevel: 7  },
   { name: 'Mithril Ore',  unlockLevel: 10 },
+  { name: 'Cotton Fiber', unlockLevel: 1 },
+  { name: 'Hemp Fiber', unlockLevel: 4 }
 ];
 
 // --- CENTRAL GAME STATE ---
 const state = reactive({
-  view: 'main' as 'main' | 'woodcutting' | 'mining' | "crafting",
+  view: 'main' as 'main' | 'woodcutting' | 'mining' | "crafting" | 'foraging',
   level: 1,
   xp: 0,
   xpNeeded: 100,
@@ -72,8 +79,9 @@ const state = reactive({
   manualAction: null as any,
   workerActions: [] as any[],
   tools: {
-    woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1 },
-    mining:      { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1 }
+    woodcutting: { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1, bindings: 1 },
+    mining:      { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1, bindings: 1 },
+    foraging:    { handle: 1, metal: 1, grip: 1, enchantment: 1, critChance: 1, critDamage: 1, bindings: 1 }
   }
 });
 
@@ -152,6 +160,7 @@ const updateLocalState = (serverState: any) => {
         enchantment: incomingTools.woodcutting?.enchantment ?? state.tools?.woodcutting?.enchantment ?? 1,
         critChance:  incomingTools.woodcutting?.critChance  ?? state.tools?.woodcutting?.critChance  ?? 1,
         critDamage:  incomingTools.woodcutting?.critDamage  ?? state.tools?.woodcutting?.critDamage  ?? 1,
+        bindings:     incomingTools.woodcutting?.binding     ?? state.tools?.woodcutting?.bindings     ?? 1
       },
       mining: {
         handle:      incomingTools.mining?.handle      ?? state.tools?.mining?.handle      ?? 1,
@@ -160,6 +169,16 @@ const updateLocalState = (serverState: any) => {
         enchantment: incomingTools.mining?.enchantment ?? state.tools?.mining?.enchantment ?? 1,
         critChance:  incomingTools.mining?.critChance  ?? state.tools?.mining?.critChance  ?? 1,
         critDamage:  incomingTools.mining?.critDamage  ?? state.tools?.mining?.critDamage  ?? 1,
+        bindings:     incomingTools.mining?.binding     ?? state.tools?.mining?.bindings     ?? 1
+      },
+      foraging: {
+        handle:      incomingTools.foraging?.handle      ?? state.tools?.foraging?.handle      ?? 1,
+        metal:       incomingTools.foraging?.metal       ?? state.tools?.foraging?.metal       ?? 1,
+        grip:        incomingTools.foraging?.grip        ?? state.tools?.foraging?.grip        ?? 1,
+        enchantment: incomingTools.foraging?.enchantment ?? state.tools?.foraging?.enchantment ?? 1,
+        critChance:  incomingTools.foraging?.critChance  ?? state.tools?.foraging?.critChance  ?? 1,
+        critDamage:  incomingTools.foraging?.critDamage  ?? state.tools?.foraging?.critDamage  ?? 1,
+        bindings:     incomingTools.foraging?.binding     ?? state.tools?.foraging?.bindings     ?? 1
       }
     };
   }
