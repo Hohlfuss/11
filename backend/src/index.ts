@@ -7,7 +7,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", 
+    origin: "https://one1-frontend.onrender.com/", 
     methods: ["GET", "POST"]
   }
 });
@@ -172,9 +172,9 @@ setInterval(async () => {
 }, 30000);
 
 app.get('/status', (req: Request, res: Response) => {
-  res.json({ status: 'Multiplayer game server running' });
+  res.json({ status: 'game server running' });
 });
 
 httpServer.listen(port, () => {
-  console.log(`[server]: Listening at http://localhost:${port}`);
+  console.log(`[server]: Listening at ${port}`);
 });
