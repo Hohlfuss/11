@@ -166,20 +166,34 @@ io.on('connection', (socket) => {
   
   // You will also need your upgrade handler if it's missing!
   socket.on('upgradeTool', (payload) => {
+    console.log('🚨 BACKEND: Crafting request received:', payload); // TRACKER
+
     const username = socket.data?.username;
-    if (!username) return;
+    if (!username) {
+      console.log('❌ Crafting Failed: No username found on socket.');
+      return;
+    }
 
     const state = activePlayers.get(username);
-    if (!state) return;
+    if (!state) {
+      console.log('❌ Crafting Failed: No active state found.');
+      return;
+    }
 
     const { skill, part } = payload;
     const success = applyToolUpgrade(state, skill, part);
     
     if (success) {
+      console.log(`✅ Crafting SUCCESS! Upgraded ${skill} ${part} for ${username}`);
       io.to(state.socketId).emit('gameStateUpdate', state);
+    } else {
+      console.log(`❌ Crafting REJECTED! Not enough resources to upgrade ${skill} ${part}.`);
+      
+      // Send a message back to the UI so the player knows why it didn't work!
+      socket.emit('actionError', 'Not enough resources to craft this upgrade.');
     }
-  });
-});
+  })
+})
 
 // --- THE GAME LOOP (Tick Rate: 100ms) ---
 setInterval(() => {
