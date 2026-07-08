@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { getPlayer, createPlayer, savePlayer } from './db.js';
 import { applyToolUpgrade } from './gameLogic.js';
+import bcrypt from "brypt";
 
 const app = express();
 const httpServer = createServer(app);
@@ -20,114 +21,64 @@ const port = process.env.PORT || 3000;
 const activePlayers = new Map<string, any>();
 
 io.on('connection', (socket) => {
-  console.log(`[server]: New connection: ${socket.id}`);
+  // --- REGISTRATION LOGIC ---
+  socket.on('registerUser', async (payload) => {
+    const { username, password } = payload;
 
-  // --- LOGIN LOGIC ---
-  socket.on('playerLogin', async (username: string) => {
-    console.log(`[server]: Login attempt for: ${username}`);
-
-    if (!username || typeof username !== 'string' || username.trim().length < 3) {
-      socket.emit('loginError', 'Username must be at least 3 characters.');
-      return;
+    if (!username || username.trim().length < 3) {
+      return socket.emit('registerError', 'Username must be at least 3 characters.');
+    }
+    if (!password || password.length < 6) {
+      return socket.emit('registerError', 'Password must be at least 6 characters.');
     }
 
     try {
-      // 1. Fetch from DB
-      let { data, error } = await getPlayer(username);
-
-      // 2. If user doesn't exist, create them.
-      //    PGRST116 = "no rows found" from .single() - that just means this
-      //    is a new player, not a real failure, so only bail out on other
-      //    error codes (bad env vars, missing table, RLS, etc.)
-      if (!data) {
-        if (error && error.code !== 'PGRST116') {
-          console.error(`[server]: Error fetching ${username}:`, error);
-          socket.emit('loginError', 'Could not reach the database. Please try again.');
-          return;
-        }
-
-        const { data: newData, error: createError } = await createPlayer(username);
-        if (createError || !newData) {
-          console.error(`[server]: Error creating ${username}:`, createError);
-          socket.emit('loginError', 'Could not create a new player.');
-          return;
-        }
-        data = newData;
+      // 1. Check availability
+      const { data: existingUser } = await getPlayer(username);
+      if (existingUser) {
+        return socket.emit('registerError', 'Username is already taken.');
       }
 
-      // 3. Store in active memory
-      const defaultInventory = { 'Oak Log': 0, 'Pine Log': 0, 'Maple Log': 0, 'Mahogany Log': 0, 'Yew Log': 0, 'Copper Ore': 0, 'Iron Ore': 0, 'Silver Ore': 0, 'Gold Ore': 0, 'Mithril Ore': 0 };
+      // 2. Hash and store
+      const saltRounds = 10;
+      const hash = await bcrypt.hash(password, saltRounds);
+      
+      const { error: createError } = await createPlayer(username, hash);
+      if (createError) {
+        return socket.emit('registerError', 'Database error during registration.');
+      }
+      
+      socket.emit('registerSuccess', 'Registration successful! You can now log in.');
+    } catch (err) {
+      socket.emit('registerError', 'Server error during registration.');
+    }
+  });
+
+  // --- LOGIN LOGIC ---
+  socket.on('playerLogin', async (payload) => {
+    const { username, password } = payload;
+
+    try {
+      let { data, error } = await getPlayer(username);
+
+      if (!data) {
+        return socket.emit('loginError', 'Invalid username or password.');
+      }
+
+      // Verify password
+      const match = await bcrypt.compare(password, data.password_hash);
+      if (!match) {
+        return socket.emit('loginError', 'Invalid username or password.');
+      }
+
+      // Initialize memory state
+      const defaultInventory = { 'Oak Log': 0, /* ... fill defaults ... */ };
       data.inventory = { ...defaultInventory, ...(data.inventory || {}) };
 
       activePlayers.set(username, { ...data, socketId: socket.id, workerActions: [], pendingEvents: [] });
-
-      // 4. Send success to client
       socket.emit('loginSuccess', activePlayers.get(username));
     } catch (err) {
-      console.error(`[server]: Unexpected login error for ${username}:`, err);
-      socket.emit('loginError', 'Unexpected server error. Please try again.');
-    }
-  });
-
-  // --- PLAYER ACTION LOGIC ---
-  socket.on('playerAction', (payload) => {
-    // Find which player sent this action
-    for (const [username, state] of activePlayers.entries()) {
-      if (state.socketId === socket.id) {
-
-        const { type, node } = payload;
-
-        if (type === 'startManual' && !state.manualAction) {
-          state.manualAction = { ...node, progress: 0 };
-        }
-
-        if (type === 'assignWorker' && state.workers_total > 0) {
-          if (!state.workerActions) state.workerActions = [];
-          if (state.workerActions.length < state.workers_total) {
-            state.workerActions.push({ ...node, progress: 0 });
-          }
-        }
-
-        if (type === 'recallWorker') {
-          if (!state.workerActions) state.workerActions = [];
-          const { nodeId } = payload;
-          const idx = state.workerActions.findIndex((w: any) => w.id === nodeId);
-          if (idx !== -1) state.workerActions.splice(idx, 1);
-        }
-
-        if (type === 'upgradeTool') {
-          const { skill, part } = payload;
-
-          if (!state.tools) state.tools = {};
-          if (!state.tools.woodcutting) state.tools.woodcutting = { handle: 1, metal: 1, bindings: 1, critChance: 1, critDamage: 1, grip: 1, enchantment: 1 };
-          if (!state.tools.mining) state.tools.mining = { handle: 1, metal: 1, bindings: 1, critChance: 1, critDamage: 1, grip: 1, enchantment: 1 };
-          if (!state.tools.foraging) state.tools.foraging = { handle: 1, metal: 1, bindings: 1, critChance: 1, critDamage: 1, grip: 1, enchantment: 1 };
-
-          if (!state.tools.woodcutting.bindings) state.tools.woodcutting.bindings = 1;
-          if (!state.tools.mining.bindings) state.tools.mining.bindings = 1;
-          if (!state.tools.foraging.bindings) state.tools.foraging.bindings = 1;
-
-          applyToolUpgrade(state, skill, part);
-        }
-
-        // 🔴 FORCE SYNC: Tell the frontend the action state changed immediately
-        socket.emit('gameStateUpdate', state);
-
-        break;
-      }
-    }
-  });
-
-  // --- DISCONNECT LOGIC ---
-  socket.on('disconnect', async () => {
-    for (const [username, state] of activePlayers.entries()) {
-      if (state.socketId === socket.id) {
-        // Save progress one last time on logout
-        await savePlayer(username, state);
-        activePlayers.delete(username);
-        console.log(`[server]: ${username} logged out and saved.`);
-        break;
-      }
+      socket.emit('loginError', 'Server error during login.');
     }
   });
 });
@@ -141,12 +92,12 @@ setInterval(() => {
 
     if (state.manualAction) {
       // Infer skill based on the yield name
-      let skill = 'woodcutting';
+      let skill = state.manualAction.skill || 'woodcutting';
       if (state.manualAction.yields.includes('Ore')) skill = 'mining';
       if (state.manualAction.yields.includes('Fiber')) skill = 'foraging';
 
       const handleLevel = state.tools?.[skill]?.handle || 1;
-      const speedMultiplier = 1 + ((handleLevel - 1) * 0.25);
+      const speedMultiplier = Math.pow(1.25, handleLevel - 1);
 
       state.manualAction.progress += (100 * speedMultiplier);
       stateChanged = true;

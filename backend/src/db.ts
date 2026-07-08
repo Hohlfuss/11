@@ -21,6 +21,7 @@ export interface PlayerState {
   xp: number;
   xp_needed: number;
   workers_total: number;
+  password_hash: string;
   inventory: Record<string, number>;
 }
 
@@ -54,13 +55,14 @@ export async function savePlayer(username: string, state: any) {
   return { error };
 }
 
-export async function createPlayer(username: string) {
+export async function createPlayer(username: string, passwordHash: string) {
   const defaultState: PlayerState = {
     username,
     level: 1,
     xp: 0,
     xp_needed: 100,
     workers_total: 0,
+    password_hash: passwordHash,
     inventory: {
       'Oak Log': 0, 'Pine Log': 0, 'Maple Log': 0, 'Mahogany Log': 0, 'Yew Log': 0,
       'Copper Ore': 0, 'Iron Ore': 0, 'Silver Ore': 0, 'Gold Ore': 0, 'Mithril Ore': 0,

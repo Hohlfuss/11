@@ -11,7 +11,7 @@ import {
   Box, 
   ChevronRight,
   Gem,
-  LogIn,
+  //LogIn,
   Wrench,
   Leaf
 } from 'lucide-vue-next';
@@ -25,9 +25,42 @@ const socket = io(backendUrl, {
 // --- AUTHENTICATION STATE ---
 const auth = reactive({
   isAuthenticated: false,
+  isRegistering: false, // Toggles between Login and Register views
   usernameInput: '',
-  error: ''
+  passwordInput: '',
+  confirmPasswordInput: '',
+  error: '',
+  success: ''
 });
+
+// Handlers
+const handleLogin = () => {
+  auth.error = '';
+  auth.success = '';
+  socket.emit('playerLogin', { 
+    username: auth.usernameInput.trim(), 
+    password: auth.passwordInput 
+  });
+};
+
+const handleRegister = () => {
+  if (auth.passwordInput !== auth.confirmPasswordInput) {
+    auth.error = 'Passwords do not match.';
+    return;
+  }
+  auth.error = '';
+  auth.success = '';
+  socket.emit('registerUser', { 
+    username: auth.usernameInput.trim(), 
+    password: auth.passwordInput 
+  });
+};
+
+const toggleAuthMode = () => {
+  auth.isRegistering = !auth.isRegistering;
+  auth.error = '';
+  auth.success = '';
+};
 
 // --- GAME DATA CONFIGURATION ---
 // unlockLevel defines the minimum player level required to use each node/material
@@ -109,19 +142,19 @@ const addNotif = (n: Omit<Notification, 'id'>) => {
   }, 2500);
 };
 
-// --- LISTEN TO THE SERVER ---
+// Listeners in onMounted
 onMounted(() => {
+  socket.on('registerSuccess', (msg) => {
+    auth.success = msg;
+    auth.isRegistering = false;
+    auth.passwordInput = '';
+    auth.confirmPasswordInput = '';
+  });
+  
+  socket.on('registerError', (errorMessage) => auth.error = errorMessage);
+  socket.on('loginError', (errorMessage) => auth.error = errorMessage);
   socket.on('loginSuccess', (serverState) => {
     auth.isAuthenticated = true;
-    auth.error = '';
-    updateLocalState(serverState);
-  });
-
-  socket.on('loginError', (errorMessage) => {
-    auth.error = errorMessage;
-  });
-
-  socket.on('gameStateUpdate', (serverState) => {
     updateLocalState(serverState);
   });
 });
@@ -193,16 +226,6 @@ const updateLocalState = (serverState: any) => {
 onUnmounted(() => {
   socket.disconnect();
 });
-
-// --- ACTIONS ---
-const handleLogin = () => {
-  if (auth.usernameInput.trim().length < 3) {
-    auth.error = 'Username must be at least 3 characters.';
-    return;
-  }
-  auth.error = '';
-  socket.emit('playerLogin', auth.usernameInput.trim());
-};
 
 const changeView = (newView: 'main' | 'woodcutting' | 'mining' | "crafting" | "foraging") => {
   state.view = newView;
@@ -294,25 +317,28 @@ const nextWorkerUnlockLevel = () => {
 
   <div class="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 flex flex-col md:flex-row gap-6">
     
-    <div v-if="!auth.isAuthenticated" class="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl">
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">Incremental Game</h1>
-        <p class="text-slate-400">Enter a username to start or resume your game.</p>
-      </div>
+    <div v-if="!auth.isAuthenticated" class="w-full max-w-md mx-auto mt-20 p-6 bg-slate-900 rounded-xl">
+    <h2 class="text-2xl font-bold mb-4 text-white">
+      {{ auth.isRegistering ? 'Create Account' : 'Login' }}
+    </h2>
+    
+    <p v-if="auth.error" class="text-red-400 mb-2">{{ auth.error }}</p>
+    <p v-if="auth.success" class="text-green-400 mb-2">{{ auth.success }}</p>
+
+    <div class="space-y-4">
+      <input v-model="auth.usernameInput" placeholder="Username" class="w-full p-2 rounded bg-slate-800 text-white" />
+      <input v-model="auth.passwordInput" type="password" placeholder="Password" class="w-full p-2 rounded bg-slate-800 text-white" />
       
-      <form @submit.prevent="handleLogin" class="flex flex-col gap-4">
-        <input 
-          v-model="auth.usernameInput" 
-          type="text" 
-          class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          placeholder="Enter Username"
-        />
-        <div v-if="auth.error" class="text-red-400 text-sm bg-red-900/20 p-3 rounded-lg">{{ auth.error }}</div>
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-          <LogIn :size="20" /> Connect
-        </button>
-      </form>
+      <input v-if="auth.isRegistering" v-model="auth.confirmPasswordInput" type="password" placeholder="Confirm Password" class="w-full p-2 rounded bg-slate-800 text-white" />
+
+      <button v-if="!auth.isRegistering" @click="handleLogin" class="w-full bg-blue-600 p-2 rounded text-white font-bold">Log In</button>
+      <button v-if="auth.isRegistering" @click="handleRegister" class="w-full bg-green-600 p-2 rounded text-white font-bold">Register</button>
     </div>
+
+    <button @click="toggleAuthMode" class="mt-4 text-sm text-slate-400 hover:text-white underline">
+      {{ auth.isRegistering ? 'Already have an account? Log in' : 'Need an account? Register' }}
+    </button>
+  </div>
     
     <div v-else class="flex-1 flex flex-col max-w-3xl border border-slate-800 rounded-xl bg-slate-900 shadow-2xl overflow-hidden">
       
